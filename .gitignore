@@ -1,0 +1,4 @@
+.DS_Store
+.Trash-*
+coverage
+node_modules
