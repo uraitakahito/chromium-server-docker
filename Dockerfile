@@ -33,19 +33,9 @@
 #
 # ### Build the Docker image
 #
-# Production:
-#
-#   PROJECT=$(basename `pwd`) && docker image build --target production -t $PROJECT-image:prod . --build-arg user_id=`id -u` --build-arg group_id=`id -g`
-#
-# Development:
-#
 #   PROJECT=$(basename `pwd`) && docker image build --target development -t $PROJECT-image:dev . --build-arg user_id=`id -u` --build-arg group_id=`id -g` --build-arg TZ=Asia/Tokyo
 #
 # ### Run the container
-#
-# Production:
-#
-#   docker container run -d --rm --init -p 9222:9222 --name chromium-server-prod $PROJECT-image:prod
 #
 # Development:
 #
