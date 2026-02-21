@@ -117,6 +117,17 @@ RUN USERNAME=${user_name} \
   ADDUSERTOROOTGROUP=true \
     /usr/src/features/src/common-utils/install.sh
 
+#
+# Install extra utils.
+#
+RUN cd /usr/src && \
+  git clone --depth 1 ${extra_utils_repository} && \
+  ADDEZA=true \
+  ADDCLAUDECODE=true \
+  # Claude Code is installed under $HOME, so the username must be specified.
+  USERNAME=${user_name} \
+    /usr/src/extra-utils/utils/install.sh
+
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
 # installs, work.
@@ -176,18 +187,6 @@ RUN apt-get update && \
       xvfb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-#
-# Install extra utils.
-#
-RUN cd /usr/src && \
-  git clone --depth 1 ${extra_utils_repository} && \
-  ADDEZA=true \
-  UPGRADEPACKAGES=false \
-  ADDCLAUDECODE=true \
-  # Claude Code is installed under $HOME, so the username must be specified.
-  USERNAME=${user_name} \
-    /usr/src/extra-utils/utils/install.sh
 
 ##############################
 #  VNC support starts here   #
