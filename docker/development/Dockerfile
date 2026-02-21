@@ -35,7 +35,7 @@
 #
 # Log into the container.
 #
-# Only for the first startup, change the owner of the command history folder:
+# (First time only) Change the owner of the command history folder:
 #
 #   sudo chown -R $(id -u):$(id -g) /zsh-volume
 #
