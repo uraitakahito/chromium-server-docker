@@ -40,6 +40,9 @@ ARG features_repository="https://github.com/uraitakahito/features.git"
 # Avoid warnings by switching to noninteractive for the build process
 ENV DEBIAN_FRONTEND=noninteractive
 
+ARG LANG=C.UTF-8
+ENV LANG="$LANG"
+
 #
 # Git
 #
