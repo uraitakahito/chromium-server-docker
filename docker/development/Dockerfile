@@ -194,6 +194,9 @@ RUN cd /usr/src && \
   git clone --depth 1 ${extra_utils_repository} && \
   ADDEZA=true \
   UPGRADEPACKAGES=false \
+  ADDCLAUDECODE=true \
+  # Claude Code is installed under $HOME, so the username must be specified.
+  USERNAME=${user_name} \
     /usr/src/extra-utils/utils/install.sh
 
 ##############################
@@ -220,17 +223,6 @@ USER ${user_name}
 RUN cd /home/${user_name} && \
   git clone --depth 1 ${dotfiles_repository} && \
   dotfiles/install.sh
-
-#
-# Claude Code
-#
-# Discussion about using nvm during Docker container build:
-#   https://stackoverflow.com/questions/25899912/how-to-install-nvm-in-docker
-#
-# There is an official devcontainer. You may use the official one instead of this Dockerfile.
-#   https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
-#
-RUN curl -fsSL https://claude.ai/install.sh | bash
 
 ####################################
 #  Puppeteer support starts here   #
