@@ -79,18 +79,8 @@ ARG extra_utils_repository="https://github.com/uraitakahito/extra-utils.git"
 # Avoid warnings by switching to noninteractive for the build process
 ENV DEBIAN_FRONTEND=noninteractive
 
-#
-# Locale
-#
-# Required for Unicode characters (e.g., Nerd Fonts icons in Zsh prompt).
-# https://github.com/uraitakahito/dotfiles/blob/f504143a3eb9f93679edbb85d36754327eabfae7/config/zsh/conf.d/00-core.zsh#L13-L20
-#
 ARG LANG=C.UTF-8
 ENV LANG="$LANG"
-
-#
-# Timezone
-#
 ARG TZ=UTC
 ENV TZ="$TZ"
 
