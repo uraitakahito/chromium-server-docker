@@ -65,8 +65,8 @@
 #   https://code.visualstudio.com/docs/devcontainers/attach-container#_attach-to-a-docker-container
 #
 
-# Debian 12.12
-FROM debian:bookworm-20251117
+# Debian 12.13
+FROM debian:bookworm-20260202
 
 ARG user_name=developer
 ARG user_id
