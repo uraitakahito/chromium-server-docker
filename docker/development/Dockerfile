@@ -226,10 +226,7 @@ RUN cd /home/${user_name} && \
 # There is an official devcontainer. You may use the official one instead of this Dockerfile.
 #   https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
 #
-ENV NVM_DIR=/usr/local/share/nvm
-RUN bash -c "source $NVM_DIR/nvm.sh && \
-             nvm use ${node_version} && \
-             npm install -g @anthropic-ai/claude-code"
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 ####################################
 #  Puppeteer support starts here   #
