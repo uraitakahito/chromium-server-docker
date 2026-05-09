@@ -29,7 +29,7 @@
 #
 
 # Debian 12.13 slim variant
-FROM debian:bookworm-20260421-slim
+FROM debian:bookworm-20260505-slim
 
 ARG user_name=developer
 ARG user_id
