@@ -6,6 +6,16 @@ A Docker environment for running Chromium with Chrome DevTools Protocol (CDP) su
 
 This project provides Docker environments for running Chromium with Chrome DevTools Protocol (CDP) support.
 
+The image is intended to be driven externally over CDP (e.g. by
+[BrowserHive](https://github.com/uraitakahito/browserhive)). Chromium
+is launched with a small, opinionated set of flags chosen to make
+this driving model predictable: each worker is expected to reuse one
+tab for its lifetime, navigations to `about:blank` are expected to
+fully tear down the previous document, and the container has no
+desktop environment so OS-integration probes (keychain,
+gnome-keyring, etc.) must be suppressed. See the inline comments in
+`chromium-{headless,headful}.conf` for the per-flag rationale.
+
 **Two separate Dockerfiles are available:**
 - **Production** : Headless Chromium with minimal footprint
 - **Development** : Full-featured environment with VNC, Node.js, and development tools
