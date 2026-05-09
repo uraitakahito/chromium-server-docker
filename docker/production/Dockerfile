@@ -8,7 +8,6 @@
 # - Minimal footprint without Node.js or development tools
 # - Chrome DevTools Protocol access on port 9222 via socat
 # - Use with external CDP client connecting remotely
-# - Minimal dotfiles (vim, tmux) from dotfiles-production repository
 # - Based on Debian slim variant for reduced image size
 #
 # ## From Docker build to login
@@ -29,14 +28,11 @@
 #
 
 # Debian 12.13 slim variant
-FROM debian:bookworm-20260421-slim
+FROM debian:bookworm-20260505-slim
 
 ARG user_name=developer
 ARG user_id
 ARG group_id
-# https://github.com/uraitakahito/dotfiles-production/releases/tag/1.0.0
-ARG dotfiles_repository="https://github.com/uraitakahito/dotfiles-production.git"
-ARG dotfiles_commit="ed6bb006bb418acb57e127bcc7d1033f40a63432"
 # https://github.com/uraitakahito/features/releases/tag/1.0.0
 ARG features_repository="https://github.com/uraitakahito/features.git"
 ARG features_commit="e8d887d2e17e79f5289b0e8a087dd0730dcad24e"
@@ -163,15 +159,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 USER ${user_name}
-
-#
-# dotfiles
-#
-RUN cd /home/${user_name} && \
-    git clone ${dotfiles_repository} && \
-    cd dotfiles-production && \
-    git checkout ${dotfiles_commit} && \
-    ./install.sh
 
 WORKDIR /app
 
