@@ -1,0 +1,55 @@
+---
+title: chromium-server-docker
+description: A Docker environment for running Chromium with Chrome DevTools Protocol (CDP) support, driven externally over CDP.
+---
+
+A Docker environment for running Chromium with **Chrome DevTools Protocol (CDP)** support.
+
+The image is meant to be **driven externally over CDP** — for example by
+[BrowserHive](https://github.com/uraitakahito/browserhive). Chromium is launched
+with a small, opinionated set of flags chosen to make that driving model
+predictable:
+
+- Each worker reuses **one tab** for its entire lifetime.
+- Navigating to `about:blank` is expected to **fully tear down** the previous
+  document — see [Driving model &amp; dbus](/internals/driving-model/).
+- The container has **no desktop environment**, so OS-integration probes
+  (keychain, gnome-keyring, …) are deliberately suppressed.
+
+## Two images
+
+| Image | Purpose |
+| ----- | ------- |
+| **Production** | Headless Chromium, minimal footprint (no Node.js / dev tools). CDP on port `9222` via `socat`. → [Production](/getting-started/production/) |
+| **Development** | Full environment with VNC (noVNC), Node.js, and dev tools. → [Development](/getting-started/development/) |
+
+## How it fits together
+
+```
+   CDP client (e.g. BrowserHive worker)
+            │  connects to :9222
+            ▼
+   ┌─────────────────────────────┐
+   │ chromium-server container   │
+   │   socat  :9222 → 127.0.0.1:9223
+   │   chromium (one tab, CDP)   │
+   └─────────────────────────────┘
+```
+
+An external worker owns one persistent tab and drives it over CDP; the container
+itself has no UI in production (the development image adds noVNC so you can watch
+the tab render in a browser).
+
+## Where to go next
+
+- [Production (headless)](/getting-started/production/) — build &amp; run the minimal image.
+- [Development (noVNC)](/getting-started/development/) — the full dev environment.
+- [Chromium flags](/configuration/chromium-flags/) — every startup flag and why it is set.
+- [Chrome DevTools Protocol](/configuration/cdp/) — how to reach and check CDP.
+- [Driving model &amp; dbus](/internals/driving-model/) — the one-tab contract, bfcache, and the dbus story.
+
+## Related projects
+
+- [BrowserHive](https://github.com/uraitakahito/browserhive) — a scalable web page
+  capture server that uses this project as its browser backend (worker pool over
+  CDP, screenshots / HTML / WACZ output).
