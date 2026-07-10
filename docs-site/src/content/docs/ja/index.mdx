@@ -1,0 +1,54 @@
+---
+title: chromium-server-docker
+description: Chrome DevTools Protocol (CDP) 対応の Chromium を Docker で動かし、CDP で外部駆動するための環境。
+---
+
+Chrome DevTools Protocol (CDP) 対応の Chromium を動かす Docker 環境。
+
+このイメージは **CDP 経由で外部から駆動される**ことを前提とする（例:
+[BrowserHive](https://github.com/uraitakahito/browserhive)）。その駆動モデルを
+予測可能にするため、Chromium は小さく方針の定まった flag 群で起動する:
+
+- 各 worker は**ひとつの tab** を生存期間中ずっと使い回す。
+- `about:blank` への遷移で直前の document を**完全に破棄する**ことを期待する
+  — [駆動モデルと dbus](/internals/driving-model/) を参照。
+- **desktop environment を持たない**ので、OS 連携の probe（keychain,
+  gnome-keyring, …）は意図的に抑止している。
+
+## 2 つのイメージ
+
+| イメージ | 目的 |
+| ------- | ---- |
+| **Production** | ヘッドレス Chromium・最小構成（Node.js / 開発ツールなし）。CDP は `socat` 経由で `9222` に公開。→ [Production](/getting-started/production/) |
+| **Development** | VNC（noVNC）・Node.js・開発ツール入りのフル環境。→ [Development](/getting-started/development/) |
+
+## 全体の構成
+
+```
+   CDP クライアント（例: BrowserHive の worker）
+            │  :9222 に接続
+            ▼
+   ┌─────────────────────────────┐
+   │ chromium-server container   │
+   │   socat  :9222 → 127.0.0.1:9223
+   │   chromium（1 tab・CDP）     │
+   └─────────────────────────────┘
+```
+
+外部 worker がひとつの永続 tab を持ち、それを CDP で駆動する。Production では
+コンテナ自体に UI は無い（Development では noVNC が付き、tab の描画をブラウザで
+観察できる）。
+
+## 次に読む
+
+- [Production（ヘッドレス）](/getting-started/production/) — 最小イメージの build と run。
+- [Development（noVNC）](/getting-started/development/) — フルの開発環境。
+- [Chromium フラグ](/configuration/chromium-flags/) — 各起動 flag とその理由。
+- [Chrome DevTools Protocol](/configuration/cdp/) — CDP への到達方法と確認。
+- [駆動モデルと dbus](/internals/driving-model/) — 1 tab 契約・bfcache・dbus の事情。
+
+## 関連プロジェクト
+
+- [BrowserHive](https://github.com/uraitakahito/browserhive) — 本プロジェクトを
+  ブラウザバックエンドとして使う、スケーラブルな Web ページ捕獲サーバ（CDP による
+  worker pool、スクリーンショット / HTML / WACZ 出力）。

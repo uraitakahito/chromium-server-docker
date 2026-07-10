@@ -1,69 +1,9 @@
 #
-# Dockerfile for building a Chromium server environment (Development)
+# chromium-server-docker — Development image (noVNC, Node.js, dev tools;
+# processes managed by supervisord).
 #
-# ## Features of this Dockerfile
-#
-# ### Development
-#
-# - You can verify Chromium operations via noVNC in a browser at http://localhost:6080/ (or http://localhost:6081/ for the second container)
-# - Claude Code is pre-installed
-# - Includes dotfiles and extra utilities
-# - Assumes host OS is Mac
-# - Passes the GH_TOKEN environment variable into the container
-#
-# ## From Docker build to login
-#
-# Build the Docker image:
-#
-#   PROJECT=$(basename `pwd`) && docker image build -f docker/development/Dockerfile -t $PROJECT-image:development . --build-arg user_id=`id -u` --build-arg group_id=`id -g` --build-arg TZ=Asia/Tokyo
-#
-# (First time only) Create a volume for command history:
-#
-# Create a volume to persist the command history executed inside the Docker container.
-# It is stored in the volume because the dotfiles configuration redirects the shell history there.
-#   https://github.com/uraitakahito/dotfiles/blob/b80664a2735b0442ead639a9d38cdbe040b81ab0/zsh/myzshrc#L298-L305
-#
-#   docker volume create $PROJECT-zsh-history
-#
-# (First time only) Create the network:
-#
-#   docker network create chromium-network
-#
-# When starting two Docker containers:
-#
-#   docker container run -d --rm --init --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock -e GH_TOKEN=$(gh auth token) --mount type=bind,src=`pwd`,dst=/app --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume -p 5901:5901 -p 6080:6080 -p 9222:9222 --network chromium-network --name chromium-server-1 $PROJECT-image:development
-#   docker container run -d --rm --init --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock -e GH_TOKEN=$(gh auth token) --mount type=bind,src=`pwd`,dst=/app --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume -p 5902:5901 -p 6081:6080 -p 9223:9222 --network chromium-network --name chromium-server-2 $PROJECT-image:development
-#
-# Log into the container.
-#
-# (First time only) Change the owner of the command history folder:
-#
-#   sudo chown -R $(id -u):$(id -g) /zsh-volume
-#
-# ## Process Management
-#
-# Chromium and socat are managed by supervisord. To check status:
-#
-#   supervisorctl -c /etc/supervisor/conf.d/app.conf status
-#
-# To restart Chromium:
-#
-#   supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
-#
-# ## Chrome DevTools Protocol
-#
-# Check CDP availability:
-#
-#   curl http://localhost:9222/json/version
-#
-# ## Connect from Visual Studio Code
-#
-# 1. Open **Command Palette (Shift + Command + p)**
-# 2. Select **Dev Containers: Attach to Running Container**
-# 3. Open the `/app` directory
-#
-# For details:
-#   https://code.visualstudio.com/docs/devcontainers/attach-container#_attach-to-a-docker-container
+# Build / run (two containers) / supervisord / VS Code attach:
+#   https://uraitakahito.github.io/chromium-server-docker/getting-started/development/
 #
 
 # Debian 12.13

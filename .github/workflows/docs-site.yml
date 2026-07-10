@@ -1,0 +1,63 @@
+name: docs-site
+
+# Build the Astro + Starlight docs site in docs-site/ and publish it to GitHub Pages.
+#   - pull_request: build only (a read-only check; never deploys).
+#   - push to develop / manual dispatch: build + deploy to Pages.
+# Enable once under Settings -> Pages -> Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-site.yml'
+  pull_request:
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-site.yml'
+  workflow_dispatch:
+
+# Default token is read-only; the deploy job elevates its own permissions.
+permissions:
+  contents: read
+
+# Serialize Pages deploys.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+      - run: npm ci
+      - run: npx astro build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # PRs run the build check only; publishing happens on develop / manual dispatch.
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

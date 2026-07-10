@@ -1,30 +1,8 @@
 #
-# Dockerfile for building a Chromium server environment (Production)
+# chromium-server-docker — Production image (headless, CDP :9222 via socat).
 #
-# ## Features of this Dockerfile
-#
-# ### Production
-# - Headless Chromium execution (no display server required)
-# - Minimal footprint without Node.js or development tools
-# - Chrome DevTools Protocol access on port 9222 via socat
-# - Use with external CDP client connecting remotely
-# - Based on Debian slim variant for reduced image size
-#
-# ## From Docker build to login
-#
-# ### Build the Docker image
-#
-#   PROJECT=$(basename `pwd`) && docker image build -f docker/production/Dockerfile -t $PROJECT-image:production .
-#
-# ### Run the container
-#
-#   docker container run -d --rm --init --network chromium-network -p 9222:9222 --name chromium-server-1 $PROJECT-image:production
-#
-# ## Chrome DevTools Protocol
-#
-# Check CDP availability:
-#
-#   curl http://localhost:9222/json/version
+# Build / run / CDP checks:
+#   https://uraitakahito.github.io/chromium-server-docker/getting-started/production/
 #
 
 # Debian 12.13 slim variant. Tag retained for human-readable provenance;
