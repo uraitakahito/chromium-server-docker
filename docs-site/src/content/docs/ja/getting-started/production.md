@@ -14,8 +14,8 @@ Production イメージは **ヘッドレス** Chromium を最小構成（Node.j
 ## イメージを build する
 
 ```sh
-PROJECT=$(basename `pwd`)
-docker image build -f docker/production/Dockerfile -t $PROJECT-image:production .
+PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
+docker image build -f docker/production/Dockerfile -t "$PROJECT-image:production" .
 ```
 
 ## network を作成する（初回のみ）

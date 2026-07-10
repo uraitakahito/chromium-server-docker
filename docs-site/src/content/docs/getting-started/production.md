@@ -15,8 +15,8 @@ from the directory name so the image tag matches the project.
 ## Build the image
 
 ```sh
-PROJECT=$(basename `pwd`)
-docker image build -f docker/production/Dockerfile -t $PROJECT-image:production .
+PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
+docker image build -f docker/production/Dockerfile -t "$PROJECT-image:production" .
 ```
 
 ## Create the network (first time only)
