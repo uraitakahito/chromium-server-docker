@@ -19,8 +19,8 @@ Development イメージは、Chromium を開発・観察するためのフル�
 ## イメージを build する
 
 ```sh
-PROJECT=$(basename `pwd`)
-docker image build -f docker/development/Dockerfile -t $PROJECT-image:development . \
+PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
+docker image build -f docker/development/Dockerfile -t "$PROJECT-image:development" . \
   --build-arg user_id=`id -u` \
   --build-arg group_id=`id -g` \
   --build-arg TZ=Asia/Tokyo

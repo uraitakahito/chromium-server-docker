@@ -20,8 +20,8 @@ These commands assume a macOS host (they mount the host SSH-agent socket at
 ## Build the image
 
 ```sh
-PROJECT=$(basename `pwd`)
-docker image build -f docker/development/Dockerfile -t $PROJECT-image:development . \
+PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
+docker image build -f docker/development/Dockerfile -t "$PROJECT-image:development" . \
   --build-arg user_id=`id -u` \
   --build-arg group_id=`id -g` \
   --build-arg TZ=Asia/Tokyo
