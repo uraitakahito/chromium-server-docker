@@ -13,7 +13,7 @@ docs site:
 - **日本語** — <https://uraitakahito.github.io/chromium-server-docker/ja/>
 
 The site is built from [`docs-site/`](docs-site/) (Astro + Starlight) and
-published to GitHub Pages on every push to `develop`.
+published to GitHub Pages on every push to `main`.
 
 To edit or preview the docs locally:
 
