@@ -7,7 +7,7 @@
 
 # Debian 12.13 slim variant. Tag retained for human-readable provenance;
 # multi-arch manifest list digest pins the actual bits we resolve to.
-FROM debian:bookworm-20260518-slim@sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb
+FROM debian:bookworm-20260623-slim@sha256:60eac759739651111db372c07be67863818726f754804b8707c90979bda511df
 
 # Production image runs Chromium as an unprivileged system user. The
 # user / group are created with --system so their UID / GID land in
