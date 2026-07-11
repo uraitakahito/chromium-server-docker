@@ -1,23 +1,22 @@
 #!/bin/bash
 #
-# Development helper for Apple Container.
+# ❄ MOTHBALLED (2026-07-11) — kept working but UNMAINTAINED. See README.md.
 #
-# Builds the `debug` target (headful Chromium + VNC/noVNC) and runs one
-# worker, then prints the CDP and noVNC URLs. Development happens on the
-# host: edit and run your CDP client (e.g. puppeteer-core) here, and watch
-# the browser render at the noVNC URL.
+# Development helper for the frozen debug target (headful Chromium + VNC/noVNC).
+# Builds attic/debug/Dockerfile and runs one worker, then prints the CDP and
+# noVNC URLs.
 #
-#   ./bin/dev.sh          # build + (re)start the debug worker
+#   ./attic/debug/dev.sh
 #
 # Can be invoked from any directory: the script cd's to the repository
 # root itself, so the build context is always correct.
 #
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 NAME="chromium-debug"
 
-container build --target debug -t chromium-server:debug -f docker/Dockerfile .
+container build -f attic/debug/Dockerfile --target debug -t chromium-server:debug .
 
 # A previous worker may still be running; `--rm` makes stop also delete it.
 container stop "${NAME}" >/dev/null 2>&1 || true

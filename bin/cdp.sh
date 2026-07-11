@@ -20,16 +20,16 @@
 set -euo pipefail
 CMD="${1:-help}"; shift || true
 
-# --- resolve worker name: CDP_TARGET -> chromium-debug -> chromium-1 -> chromium-* ---
+# --- resolve worker name: CDP_TARGET -> chromium-1 -> first chromium-* ---
+# (a revived attic/debug worker named chromium-debug is still matched by
+# the chromium-* fallback)
 NAME="${CDP_TARGET:-}"
 if [ -z "$NAME" ]; then
     NAME=$(container ls --format json | python3 -c '
 import json, sys
 ids = [c.get("configuration", {}).get("id", "") for c in json.load(sys.stdin)]
-for cand in ("chromium-debug", "chromium-1"):
-    if cand in ids:
-        print(cand)
-        break
+if "chromium-1" in ids:
+    print("chromium-1")
 else:
     workers = [i for i in ids if i.startswith("chromium-")]
     print(workers[0] if workers else "")')

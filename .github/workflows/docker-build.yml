@@ -20,10 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Targets of the single multi-stage docker/Dockerfile. The mothballed
-        # development image (attic/development/) is intentionally NOT built
-        # here — see attic/development/README.md.
-        variant: [production, debug]
+        # Targets of the single multi-stage docker/Dockerfile. Mothballed
+        # units (attic/development/, attic/debug/) are intentionally NOT
+        # built here — see the README.md in each attic directory.
+        variant: [production]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 

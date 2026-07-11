@@ -3,15 +3,16 @@
 #
 #   base       : shared Chromium server core (chromium, fonts, dbus,
 #                supervisor, socat). Not runnable on its own.
-#   debug      : headful + VNC/noVNC, for watching Chromium render while
-#                developing from the host over CDP.
 #   production : headless, CDP on :9222 via socat. Last stage, so an
 #                untargeted `build` yields production (fail-safe default).
+#
+# The former headful `debug` target (VNC/noVNC) is mothballed under
+# attic/debug/ — the chrome://inspect screencast covers visual verification
+# against headless workers (see the Verifying workers docs page).
 #
 # Build (run from the repository root — the build context `.` must be the
 # repo root so that COPY can see the *.conf / *.sh files there):
 #   container build --target production -t chromium-server:production -f docker/Dockerfile .
-#   container build --target debug      -t chromium-server:debug      -f docker/Dockerfile .
 #
 # Docs:
 #   https://uraitakahito.github.io/chromium-server-docker/
@@ -154,51 +155,6 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
-
-# ---------------------------------------------------------------------------
-# debug — headful + VNC/noVNC, for watching Chromium render during
-# development. Driven over CDP exactly like production; the only additions
-# are a virtual display and its VNC delivery.
-#
-# The VNC stack comes from plain Debian packages (not the desktop-lite
-# devcontainer feature the mothballed development image used), so this
-# stage has no external repository pins. All processes — X server included
-# — are managed by supervisord, keeping the image's single process-model.
-#
-#   xvfb       : virtual X server (in-memory framebuffer, display :1)
-#   fluxbox    : minimal window manager (frames/titles for the browser window)
-#   x11vnc     : serves display :1 over VNC on :5901
-#   novnc      : browser-based VNC client pages
-#   websockify : bridges VNC (:5901) to WebSocket (:6080) for noVNC
-# ---------------------------------------------------------------------------
-FROM base AS debug
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        xvfb \
-        x11vnc \
-        fluxbox \
-        novnc \
-        websockify && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy supervisor configuration and startup config
-# (--chmod=644: the container runs as the non-root 'chromium' user; without
-# an explicit chmod, COPY preserves source permissions and a 600 source
-# would make the file unreadable for supervisord.)
-COPY --chmod=644 supervisord-debug.conf /etc/supervisor/conf.d/app.conf
-COPY --chmod=644 chromium-headful.conf /app/chromium-headful.conf
-
-# Same probe as production: the CDP endpoint is the contract, VNC is only
-# a viewing aid. Evaluated by Docker-compatible runtimes; Apple Container
-# ignores HEALTHCHECK (probe externally).
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -sf http://localhost:9222/json/version || exit 1
-
-USER chromium
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]
 
 # ---------------------------------------------------------------------------
 # production — headless, CDP :9222 (DEFAULT: last stage in this file)
