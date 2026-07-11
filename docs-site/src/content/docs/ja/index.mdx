@@ -15,12 +15,16 @@ Chrome DevTools Protocol (CDP) 対応の Chromium を動かす Docker 環境。
 - **desktop environment を持たない**ので、OS 連携の probe（keychain,
   gnome-keyring, …）は意図的に抑止している。
 
-## 2 つのイメージ
+## イメージ
 
-| イメージ | 目的 |
-| ------- | ---- |
+| ターゲット | 目的 |
+| --------- | ---- |
 | **Production** | ヘッドレス Chromium・最小構成（Node.js / 開発ツールなし）。CDP は `socat` 経由で `9222` に公開。→ [Production](/getting-started/production/) |
-| **Development** | VNC（noVNC）・Node.js・開発ツール入りのフル環境。→ [Development](/getting-started/development/) |
+
+かつてのヘッドフル系イメージ（コンテナ内完結の開発環境と `debug` VNC ターゲット）は
+`attic/` 配下に凍結保管した。描画の目視確認は headless worker のまま
+`chrome://inspect` のスクリーンキャストで行う。
+[worker の動作確認](/getting-started/verify/) を参照。
 
 ## 全体の構成
 
@@ -35,14 +39,15 @@ Chrome DevTools Protocol (CDP) 対応の Chromium を動かす Docker 環境。
    └─────────────────────────────┘
 ```
 
-外部 worker がひとつの永続 tab を持ち、それを CDP で駆動する。Production では
-コンテナ自体に UI は無い（Development では noVNC が付き、tab の描画をブラウザで
-観察できる）。
+外部 worker がひとつの永続 tab を持ち、それを CDP で駆動する。コンテナ自体に
+UI は無い。tab の描画を見たいときは `chrome://inspect` のスクリーンキャストで
+worker を開く — headless のまま機能する
+（[worker の動作確認](/getting-started/verify/) 参照）。
 
 ## 次に読む
 
 - [Production（ヘッドレス）](/getting-started/production/) — 最小イメージの build と run。
-- [Development（noVNC）](/getting-started/development/) — フルの開発環境。
+- [worker の動作確認](/getting-started/verify/) — ワンショット CDP 確認と描画の目視。
 - [Chromium フラグ](/configuration/chromium-flags/) — 各起動 flag とその理由。
 - [Chrome DevTools Protocol](/configuration/cdp/) — CDP への到達方法と確認。
 - [駆動モデルと dbus](/internals/driving-model/) — 1 tab 契約・bfcache・dbus の事情。

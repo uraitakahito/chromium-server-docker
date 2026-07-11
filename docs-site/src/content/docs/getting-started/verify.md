@@ -3,10 +3,8 @@ title: Verifying workers
 description: One-shot CDP checks with bin/cdp.sh and live viewing via chrome://inspect — works identically for headless production and debug workers.
 ---
 
-Every worker — the **headless `production` target and the headful `debug`
-target alike** — exposes the same CDP endpoint on `:9222` of its own IP, so
-the checks on this page work identically against both. Get the IP from the
-`./bin/prod.sh` / `./bin/dev.sh` output, or from `container ls`.
+Every worker exposes the same CDP endpoint on `:9222` of its own IP.
+Get the IP from the `./bin/prod.sh` output, or from `container ls`.
 
 :::note
 Commands assume the repository root. On the first connection macOS may ask
@@ -36,9 +34,9 @@ is working. More one-shot commands:
 ./bin/cdp.sh targets                          # list open tabs
 ```
 
-The worker defaults to `chromium-debug`, then `chromium-1`; pick one
-explicitly with `CDP_TARGET=chromium-2 ./bin/cdp.sh ...`. Every failure
-exits non-zero, so the commands can back automated checks as-is.
+The worker defaults to `chromium-1` (else the first running `chromium-*`);
+pick one explicitly with `CDP_TARGET=chromium-2 ./bin/cdp.sh ...`. Every
+failure exits non-zero, so the commands can back automated checks as-is.
 
 For an HTTP-only liveness probe (no WebSocket involved):
 
@@ -75,5 +73,5 @@ navigating** (measured). Navigate from the screencast URL bar instead.
 
 - [Production (headless)](/getting-started/production/) — build and run
   headless workers.
-- [Development (host + CDP)](/getting-started/development/) — the debug
-  target and watching it render via noVNC.
+- [Chromium flags](/configuration/chromium-flags/) — what each startup flag
+  does and how to override them with a custom `.conf`.

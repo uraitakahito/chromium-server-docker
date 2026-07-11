@@ -3,11 +3,8 @@ title: worker の動作確認
 description: bin/cdp.sh によるワンショット CDP 確認と、chrome://inspect によるライブ目視。headless の production と debug のどちらの worker にも同じ手順が使える。
 ---
 
-worker は — **headless の `production` ターゲットも headful の `debug`
-ターゲットも** — 自分の IP の `:9222` に同じ CDP エンドポイントを公開して
-います。そのため、このページの確認手順はどちらの worker にも同じように
-使えます。IP は `./bin/prod.sh` / `./bin/dev.sh` の出力か `container ls`
-で確認してください。
+worker は自分の IP の `:9222` に同じ CDP エンドポイントを公開しています。
+IP は `./bin/prod.sh` の出力か `container ls` で確認してください。
 
 :::note
 コマンドはリポジトリルートで実行する前提です。初回接続時に macOS が
@@ -37,7 +34,7 @@ title: "Yahoo! JAPAN"
 ./bin/cdp.sh targets                          # 開いているタブの一覧
 ```
 
-対象 worker は `chromium-debug` → `chromium-1` の順で自動選択されます。
+対象 worker は `chromium-1`（無ければ最初の `chromium-*`）が自動選択されます。
 明示するには `CDP_TARGET=chromium-2 ./bin/cdp.sh ...`。失敗はすべて
 exit≠0 になるため、そのまま自動チェックにも使えます。
 
@@ -77,5 +74,5 @@ inspect ページの「Open tab with url」入力欄は使わないでくださ�
 
 - [本番（headless）](/getting-started/production/) — headless worker の
   build と run。
-- [開発（ホスト + CDP）](/getting-started/development/) — debug ターゲットと
-  noVNC による目視。
+- [Chromium フラグ](/configuration/chromium-flags/) — 各起動フラグの意味と、
+  カスタム `.conf` での上書き方法。

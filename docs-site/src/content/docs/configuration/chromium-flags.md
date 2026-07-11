@@ -4,17 +4,19 @@ description: Every Chromium startup flag this image sets, why it is set, and how
 ---
 
 Chromium's startup flags live in a plain config file — `chromium-headless.conf`
-for the production (headless) image and `chromium-headful.conf` for the
-development (headful) image. Each line is one option; blank lines and lines
-starting with `#` are ignored. `start-chromium.sh` reads the file, strips
+for the production (headless) image. Each line is one option; blank lines and
+lines starting with `#` are ignored. `start-chromium.sh` reads the file, strips
 comments, and execs Chromium with the remaining flags.
+
+(The headful counterpart, `chromium-headful.conf`, now lives with the
+mothballed units under `attic/` — its flags are still documented below.)
 
 ## Override the flags
 
 Copy a `.conf`, edit it, and bind-mount it over the one in the image:
 
 ```sh
-docker container run \
+container run \
   --mount type=bind,src=/path/to/custom.conf,dst=/app/chromium-headless.conf,readonly \
   ...
 ```
@@ -23,7 +25,7 @@ docker container run \
 
 | Flag | Why |
 | ---- | --- |
-| `--headless` | Headless image only. The headful image omits it so Chromium renders to the VNC display. |
+| `--headless` | Headless (production) image. The mothballed headful units (`attic/`) omit it so Chromium renders to the VNC display. |
 | `--remote-debugging-port=9223` | CDP endpoint port **inside** the container. Chromium binds it to localhost only; `socat` bridges the published `9222` to it (see [CDP](/configuration/cdp/)). |
 | `--remote-debugging-address=127.0.0.1` | Bind CDP to localhost. Chromium removed support for binding `0.0.0.0` for security, so external access goes through `socat`. |
 | `--no-first-run`, `--no-default-browser-check` | Skip first-run UI and default-browser prompts. |
@@ -36,7 +38,7 @@ docker container run \
 | `--disable-back-forward-cache` | Disable bfcache so `about:blank` truly tears down the previous document — see below. |
 | `--disk-cache-size=1073741824` | 1 GiB disk cache. Must stay under the int32 max (`2147483647`); Chromium silently rejects larger values. |
 | `--user-data-dir=/tmp/chrome-profile` | Profile directory under `/tmp`. |
-| `--start-maximized` | Headful image only — maximise the window on the VNC display. |
+| `--start-maximized` | Mothballed headful conf only — maximise the window on the VNC display. |
 
 ## Why `--password-store=basic`
 
@@ -52,8 +54,8 @@ skips the probe path entirely.
 
 It is safe here because the image is driven over CDP for automated capture and
 never asks a user to save passwords, so the weaker on-disk encryption `basic`
-uses is moot. Both the headless and headful variants carry the flag for the same
-reason.
+uses is moot. The headless conf and the mothballed headful conf both carry the
+flag for the same reason.
 
 ## Why `--disable-back-forward-cache`
 

@@ -5,15 +5,17 @@ support. The image is meant to be driven externally over CDP — for example by
 [BrowserHive](https://github.com/uraitakahito/browserhive).
 
 The single multi-stage [`docker/Dockerfile`](docker/Dockerfile) provides a
-headless `production` target and a headful `debug` target (VNC/noVNC), run
-under [Apple Container](https://github.com/apple/container) on macOS 26+.
-Being standard OCI images, they also build and run on any Docker-compatible
+headless `production` target, run under
+[Apple Container](https://github.com/apple/container) on macOS 26+.
+Being a standard OCI image, it also builds and runs on any Docker-compatible
 runtime (CI uses Docker).
 
-> **attic/** — retired-but-preserved code lives under [`attic/`](attic/).
-> Notably the former containerized development image is mothballed at
-> [`attic/development/`](attic/development/) with a revival checklist;
-> development now happens on the host over CDP (see the docs site).
+> **attic/** — retired-but-preserved code lives under [`attic/`](attic/),
+> each unit self-contained with a revival checklist: the former containerized
+> development image ([`attic/development/`](attic/development/)) and the
+> former headful `debug` target ([`attic/debug/`](attic/debug/)). Visual
+> verification now uses the `chrome://inspect` screencast against headless
+> workers — see the docs site.
 
 ## Documentation
 

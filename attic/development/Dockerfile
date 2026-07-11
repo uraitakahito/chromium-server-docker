@@ -262,12 +262,13 @@ WORKDIR /app
 #   --mount type=bind,src=`pwd`,dst=/app
 # In that case, the host's files are used instead of these copied files.
 # Paths are relative to the repository root (the build context).
-# supervisord-headful.conf / start-supervised.sh moved into attic/ together
-# with this Dockerfile; start-chromium.sh and chromium-headful.conf are
-# still live at the root (shared with the debug target of docker/Dockerfile).
+# supervisord-headful.conf / start-supervised.sh / chromium-headful.conf all
+# live in this directory (self-contained frozen unit — chromium-headful.conf
+# was copied here when the debug target was mothballed to attic/debug/ on
+# 2026-07-11); start-chromium.sh is still live at the root (production uses it).
 COPY --chmod=644 attic/development/supervisord-headful.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
-COPY --chmod=644 chromium-headful.conf /app/chromium-headful.conf
+COPY --chmod=644 attic/development/chromium-headful.conf /app/chromium-headful.conf
 COPY --chmod=755 attic/development/start-supervised.sh /usr/local/bin/start-supervised.sh
 
 # Health check for CDP availability

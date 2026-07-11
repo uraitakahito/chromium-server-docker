@@ -16,12 +16,16 @@ predictable:
 - The container has **no desktop environment**, so OS-integration probes
   (keychain, gnome-keyring, …) are deliberately suppressed.
 
-## Two images
+## The image
 
-| Image | Purpose |
-| ----- | ------- |
+| Target | Purpose |
+| ------ | ------- |
 | **Production** | Headless Chromium, minimal footprint (no Node.js / dev tools). CDP on port `9222` via `socat`. → [Production](/getting-started/production/) |
-| **Development** | Full environment with VNC (noVNC), Node.js, and dev tools. → [Development](/getting-started/development/) |
+
+The former headful images (the containerized development environment and the
+`debug` VNC target) are mothballed under `attic/` — visual verification now
+uses the `chrome://inspect` screencast against headless workers. See
+[Verifying workers](/getting-started/verify/).
 
 ## How it fits together
 
@@ -37,13 +41,14 @@ predictable:
 ```
 
 An external worker owns one persistent tab and drives it over CDP; the container
-itself has no UI in production (the development image adds noVNC so you can watch
-the tab render in a browser).
+itself has no UI. To watch the tab render, open the worker in the
+`chrome://inspect` screencast — it works against headless workers
+(see [Verifying workers](/getting-started/verify/)).
 
 ## Where to go next
 
 - [Production (headless)](/getting-started/production/) — build &amp; run the minimal image.
-- [Development (noVNC)](/getting-started/development/) — the full dev environment.
+- [Verifying workers](/getting-started/verify/) — one-shot CDP checks and watching rendering.
 - [Chromium flags](/configuration/chromium-flags/) — every startup flag and why it is set.
 - [Chrome DevTools Protocol](/configuration/cdp/) — how to reach and check CDP.
 - [Driving model &amp; dbus](/internals/driving-model/) — the one-tab contract, bfcache, and the dbus story.

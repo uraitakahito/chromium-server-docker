@@ -4,7 +4,7 @@
 | --- | --- |
 | **状態** | ❄ 凍結（メンテナンス予定なし・削除はしない） |
 | **凍結日** | 2026-07-11 |
-| **最終確認** | base: `9e9be62` ＋再構築ワークツリー。`docker build -f attic/development/Dockerfile .`（OrbStack / Docker 29.x, arm64）が成功することを凍結時に確認 |
+| **最終確認** | base: `9e9be62` ＋再構築ワークツリー。`docker build -f attic/development/Dockerfile .`（OrbStack / Docker 29.x, arm64）が成功することを凍結時に確認。**2026-07-11 追記**: debug ターゲットの凍結（attic/debug/）に伴い `chromium-headful.conf` を本ディレクトリへ複製し COPY パスを修正、同日ビルド成功を再確認 |
 | **凍結理由** | Apple Container 移行に伴い、開発を「ホスト macOS + CDP + `debug` ターゲット」方式へ変更（docs-site の development ページ参照）。コンテナ内完結の開発環境（dotfiles / Claude Code / VS Code attach / zsh 履歴 volume / ssh-agent 転送）は当面不要になったため |
 
 ## これは何だったか
