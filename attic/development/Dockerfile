@@ -1,9 +1,19 @@
 #
+# ❄ MOTHBALLED (2026-07-11) — kept buildable but UNMAINTAINED.
+#
+# Development moved to "host + CDP + debug target" (see the docs-site
+# development page). This image is preserved for possible revival; see
+# README.md in this directory for the freeze notice and revival checklist.
+#
+# Build from the repository root (Docker/OrbStack, not Apple Container —
+# VS Code attach was the point of this image):
+#   docker build -f attic/development/Dockerfile . \
+#     --build-arg user_id=1001 --build-arg group_id=1001
+#
 # chromium-server-docker — Development image (noVNC, Node.js, dev tools;
 # processes managed by supervisord).
 #
-# Build / run (two containers) / supervisord / VS Code attach:
-#   https://uraitakahito.github.io/chromium-server-docker/getting-started/development/
+# Original docs (retired copy): ./docs.md / ./docs.ja.md
 #
 
 # Debian 12.13
@@ -251,10 +261,14 @@ WORKDIR /app
 # WARNING: Files copied to /app will be overwritten if you use bind mount:
 #   --mount type=bind,src=`pwd`,dst=/app
 # In that case, the host's files are used instead of these copied files.
-COPY --chmod=644 supervisord-headful.conf /etc/supervisor/conf.d/app.conf
+# Paths are relative to the repository root (the build context).
+# supervisord-headful.conf / start-supervised.sh moved into attic/ together
+# with this Dockerfile; start-chromium.sh and chromium-headful.conf are
+# still live at the root (shared with the debug target of docker/Dockerfile).
+COPY --chmod=644 attic/development/supervisord-headful.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 COPY --chmod=644 chromium-headful.conf /app/chromium-headful.conf
-COPY --chmod=755 start-supervised.sh /usr/local/bin/start-supervised.sh
+COPY --chmod=755 attic/development/start-supervised.sh /usr/local/bin/start-supervised.sh
 
 # Health check for CDP availability
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \

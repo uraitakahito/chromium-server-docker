@@ -1,103 +1,104 @@
 ---
-title: 開発（noVNC）
-description: noVNC・Node.js・開発ツール入りのフル開発イメージを build/run する。プロセスは supervisord が管理する。
+title: 開発（ホスト + CDP）
+description: macOS ホスト側で開発し、debug ターゲットの Chromium コンテナを CDP で駆動、noVNC で描画を観察する。
 ---
 
-Development イメージは、Chromium を開発・観察するためのフル環境:
+開発は**ホスト側**で行います。エディタ・Node.js（puppeteer-core）などのツール一式は
+macOS 上で動かし、Chromium は単一 multi-stage `docker/Dockerfile` の `debug`
+ターゲットから作ったコンテナで動かします — headful で、仮想ディスプレイを
+VNC/noVNC 越しに観察できます。
 
-- **noVNC** でブラウザから Chromium の描画を観察できる（`http://localhost:6080/`、
-  2 台目は `http://localhost:6081/`）。
-- **Claude Code** がプリインストール済み。dotfiles と追加ユーティリティ入り。
-- ホスト OS は macOS を想定。
-- `GH_TOKEN` 環境変数をコンテナへ引き渡す。
+ランタイムは [Apple Container](https://github.com/apple/container)
+（macOS 26 以降・Apple Silicon）。コンテナ＝軽量 VM が**それぞれ固有の IP**を持ち、
+どの worker も自分のアドレスの `:9222`（CDP）と `:6080`（noVNC）を公開します。
+ホスト側のポートマッピングは不要で、2 台目のポートずらしもありません。
 
-:::caution
-以下は macOS ホスト前提（ホストの SSH-agent socket を
-`/run/host-services/ssh-auth.sock` にマウントする）。他のホストでは mount を調整する。
+:::note
+このページのコマンドはすべて**リポジトリルートで実行**する前提です
+（ビルドコンテキストが `.` であり、`./bin/dev.sh` も相対パスで呼び出すため）。
+
+以前の「コンテナ内完結」開発環境（Node.js・dotfiles・Claude Code・VS Code attach）は
+`attic/development/` に**凍結保管**しています。経緯と復活手順は
+`attic/development/README.md` を参照してください。
 :::
-
-## イメージを build する
-
-```sh
-PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
-docker image build -f docker/development/Dockerfile -t "$PROJECT-image:development" . \
-  --build-arg user_id=`id -u` \
-  --build-arg group_id=`id -g` \
-  --build-arg TZ=Asia/Tokyo
-```
 
 ## 初回のみのセットアップ
 
-シェル履歴をコンテナの run をまたいで永続化する named volume を作る（dotfiles が
-シェル履歴をここへ逃がす）:
-
 ```sh
-docker volume create $PROJECT-zsh-history
+container system start
 ```
 
-共有 network を作る:
+## debug worker を build して起動する
 
 ```sh
-docker network create chromium-network
+./bin/dev.sh
 ```
 
-## 2 台のコンテナを run する
+スクリプトが `debug` ターゲットをビルドし、`chromium-debug` という worker を
+（再）起動して URL を表示します:
+
+```text
+CDP  : http://192.168.64.x:9222/json/version
+noVNC: http://192.168.64.x:6080/vnc.html
+```
+
+手動でやる場合:
 
 ```sh
-# chromium-server-1 — noVNC :6080, CDP :9222
-docker container run -d --rm --init \
-  --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock \
-  -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-  -e GH_TOKEN=$(gh auth token) \
-  --mount type=bind,src=`pwd`,dst=/app \
-  --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume \
-  -p 5901:5901 -p 6080:6080 -p 9222:9222 \
-  --network chromium-network --name chromium-server-1 \
-  $PROJECT-image:development
-
-# chromium-server-2 — noVNC :6081, CDP :9223
-docker container run -d --rm --init \
-  --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock \
-  -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-  -e GH_TOKEN=$(gh auth token) \
-  --mount type=bind,src=`pwd`,dst=/app \
-  --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume \
-  -p 5902:5901 -p 6081:6080 -p 9223:9222 \
-  --network chromium-network --name chromium-server-2 \
-  $PROJECT-image:development
+container build --target debug -t chromium-server:debug -f docker/Dockerfile .
+container run -d --rm --cpus 4 --memory 4g --name chromium-debug chromium-server:debug
+container ls   # IP 列を参照
 ```
 
-履歴 volume の所有者を初回だけ直す（volume ドライバが root で作るため）:
+:::caution
+初回接続時に macOS が**ローカルネットワーク**権限を求めることがあります。
+接続元アプリ（ターミナル・ブラウザ）と Container ランタイムの**両方**を許可してください。
+許可漏れは empty reply やハングとして現れます。
+:::
 
-```sh
-sudo chown -R $(id -u):$(id -g) /zsh-volume
+## ホストから駆動する
+
+Chromium の駆動方法は production と同じ CDP です。ホストの `puppeteer-core` から:
+
+```js
+const puppeteer = require('puppeteer-core');
+
+const browser = await puppeteer.connect({
+  browserURL: 'http://192.168.64.x:9222',
+});
+const page = await browser.newPage();
+await page.goto('https://example.com');
 ```
+
+## 描画を観察する
+
+ブラウザで noVNC の URL を開き **Connect** を押します:
+
+```text
+http://192.168.64.x:6080/vnc.html
+```
+
+fluxbox の枠付き headful Chromium が、CDP クライアントの操作どおりに動く様子が見えます。
 
 ## プロセス管理
 
-Chromium と `socat` は **supervisord** が管理する。状態確認:
+コンテナ内の全プロセス（`xvfb`・`fluxbox`・`x11vnc`・`novnc`・`chromium`・`socat`）は
+`supervisord` が管理します:
 
 ```sh
-supervisorctl -c /etc/supervisor/conf.d/app.conf status
-```
-
-Chromium を再起動:
-
-```sh
-supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
+container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf status
+container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
 ```
 
 ## CDP を確認する
 
 ```sh
-curl http://localhost:9222/json/version
+curl http://192.168.64.x:9222/json/version
 ```
 
-## Visual Studio Code から接続する
+## 次のステップ
 
-1. **コマンドパレット**（`Shift` + `Command` + `P`）を開く。
-2. **Dev Containers: Attach to Running Container** を選ぶ。
-3. `/app` ディレクトリを開く。
-
-詳細は [VS Code のドキュメント](https://code.visualstudio.com/docs/devcontainers/attach-container#_attach-to-a-docker-container)
-を参照。
+- [Chromium フラグ](/ja/configuration/chromium-flags/) — 各起動フラグの意味と、
+  カスタム `.conf` での上書き方法。
+- [駆動モデルと dbus](/ja/internals/driving-model/) — このイメージが前提とする
+  one-tab-per-worker の契約。

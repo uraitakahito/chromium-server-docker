@@ -1,105 +1,106 @@
 ---
-title: Development (noVNC)
-description: Build and run the full development image with noVNC, Node.js, and dev tools, managed by supervisord.
+title: Development (host + CDP)
+description: Develop on the macOS host and drive a debug-target Chromium container over CDP, watching it render via noVNC.
 ---
 
-The development image is a full-featured environment for working on and watching
-Chromium:
+Development happens **on the host**: your editor, Node.js (puppeteer-core), and
+all other tooling run on macOS, while Chromium runs in a container built from
+the `debug` target of the single multi-stage `docker/Dockerfile` — headful,
+with its virtual display served over VNC/noVNC so you can watch pages render.
 
-- Watch Chromium render via **noVNC** in a browser at `http://localhost:6080/`
-  (or `http://localhost:6081/` for a second container).
-- **Claude Code** is pre-installed, along with dotfiles and extra utilities.
-- Assumes the host OS is macOS.
-- Forwards the `GH_TOKEN` environment variable into the container.
+The runtime is [Apple Container](https://github.com/apple/container)
+(macOS 26+, Apple silicon). Each container is a lightweight VM with its own IP:
+every worker exposes CDP on `:9222` and noVNC on `:6080` of its **own address**,
+so there is no host port mapping and no port offsets for a second worker.
 
-:::caution
-These commands assume a macOS host (they mount the host SSH-agent socket at
-`/run/host-services/ssh-auth.sock`). Adjust the mounts for other hosts.
+:::note
+All commands on this page assume you run them **from the repository root**
+(the build context is `.`, and `./bin/dev.sh` is invoked by relative path).
+
+The previous containerized development environment (Node.js, dotfiles,
+Claude Code, VS Code attach) is **mothballed** under `attic/development/`.
+See `attic/development/README.md` for why, and for the revival checklist.
 :::
-
-## Build the image
-
-```sh
-PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
-docker image build -f docker/development/Dockerfile -t "$PROJECT-image:development" . \
-  --build-arg user_id=`id -u` \
-  --build-arg group_id=`id -g` \
-  --build-arg TZ=Asia/Tokyo
-```
 
 ## One-time setup
 
-Create a named volume so shell history persists across container runs (the
-dotfiles redirect shell history there):
-
 ```sh
-docker volume create $PROJECT-zsh-history
+container system start
 ```
 
-Create the shared network:
+## Build and run the debug worker
 
 ```sh
-docker network create chromium-network
+./bin/dev.sh
 ```
 
-## Run two containers
+The script builds the `debug` target, (re)starts a worker named
+`chromium-debug`, and prints its URLs:
+
+```text
+CDP  : http://192.168.64.x:9222/json/version
+noVNC: http://192.168.64.x:6080/vnc.html
+```
+
+Manual equivalent:
 
 ```sh
-# chromium-server-1 — noVNC :6080, CDP :9222
-docker container run -d --rm --init \
-  --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock \
-  -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-  -e GH_TOKEN=$(gh auth token) \
-  --mount type=bind,src=`pwd`,dst=/app \
-  --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume \
-  -p 5901:5901 -p 6080:6080 -p 9222:9222 \
-  --network chromium-network --name chromium-server-1 \
-  $PROJECT-image:development
-
-# chromium-server-2 — noVNC :6081, CDP :9223
-docker container run -d --rm --init \
-  --mount type=bind,src=/run/host-services/ssh-auth.sock,dst=/run/host-services/ssh-auth.sock \
-  -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-  -e GH_TOKEN=$(gh auth token) \
-  --mount type=bind,src=`pwd`,dst=/app \
-  --mount type=volume,source=$PROJECT-zsh-history,target=/zsh-volume \
-  -p 5902:5901 -p 6081:6080 -p 9223:9222 \
-  --network chromium-network --name chromium-server-2 \
-  $PROJECT-image:development
+container build --target debug -t chromium-server:debug -f docker/Dockerfile .
+container run -d --rm --cpus 4 --memory 4g --name chromium-debug chromium-server:debug
+container ls   # IP column
 ```
 
-Fix ownership of the history volume the first time (its files are created as
-root by the volume driver):
+:::caution
+On the first connection macOS may ask for **Local Network** permission.
+Allow it for both the connecting app (terminal, browser) and the Container
+runtime; a missing grant surfaces as empty replies / hangs.
+:::
 
-```sh
-sudo chown -R $(id -u):$(id -g) /zsh-volume
+## Drive it from the host
+
+Chromium is driven over CDP exactly as in production. With `puppeteer-core`
+on the host:
+
+```js
+const puppeteer = require('puppeteer-core');
+
+const browser = await puppeteer.connect({
+  browserURL: 'http://192.168.64.x:9222',
+});
+const page = await browser.newPage();
+await page.goto('https://example.com');
 ```
+
+## Watch it render
+
+Open the noVNC URL in a browser and press **Connect**:
+
+```text
+http://192.168.64.x:6080/vnc.html
+```
+
+You will see the headful Chromium window (with a fluxbox frame) executing
+whatever your CDP client does.
 
 ## Process management
 
-Chromium and `socat` are managed by **supervisord**. Check status:
+`supervisord` manages the whole process tree inside the container
+(`xvfb`, `fluxbox`, `x11vnc`, `novnc`, `chromium`, `socat`):
 
 ```sh
-supervisorctl -c /etc/supervisor/conf.d/app.conf status
-```
-
-Restart Chromium:
-
-```sh
-supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
+container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf status
+container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
 ```
 
 ## Verify CDP
 
 ```sh
-curl http://localhost:9222/json/version
+curl http://192.168.64.x:9222/json/version
 ```
 
-## Attach from Visual Studio Code
+## Next
 
-1. Open the **Command Palette** (`Shift` + `Command` + `P`).
-2. Select **Dev Containers: Attach to Running Container**.
-3. Open the `/app` directory.
-
-See the [VS Code docs](https://code.visualstudio.com/docs/devcontainers/attach-container#_attach-to-a-docker-container)
-for details.
+- [Chromium flags](/configuration/chromium-flags/) — what each startup flag
+  does and how to override them with a custom `.conf`.
+- [Driving model &amp; dbus](/internals/driving-model/) — the one-tab-per-worker
+  contract this image is built around.
