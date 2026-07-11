@@ -22,6 +22,8 @@ container build --target production -t chromium-server:production -f docker/Dock
 for i in $(seq 1 "${COUNT}"); do
     name="chromium-${i}"
     container stop "${name}" >/dev/null 2>&1 || true
+    # Apple Container VMs default to 1 GiB, which starves Chromium (measured:
+    # ~520 MiB with a single empty tab, before real page weight).
     container run -d --rm --cpus 4 --memory 4g --name "${name}" chromium-server:production
 done
 
