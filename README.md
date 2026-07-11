@@ -1,8 +1,19 @@
 # Chromium Server Docker
 
-A Docker environment for running Chromium with Chrome DevTools Protocol (CDP)
+A container environment for running Chromium with Chrome DevTools Protocol (CDP)
 support. The image is meant to be driven externally over CDP — for example by
 [BrowserHive](https://github.com/uraitakahito/browserhive).
+
+The single multi-stage [`docker/Dockerfile`](docker/Dockerfile) provides a
+headless `production` target and a headful `debug` target (VNC/noVNC), run
+under [Apple Container](https://github.com/apple/container) on macOS 26+.
+Being standard OCI images, they also build and run on any Docker-compatible
+runtime (CI uses Docker).
+
+> **attic/** — retired-but-preserved code lives under [`attic/`](attic/).
+> Notably the former containerized development image is mothballed at
+> [`attic/development/`](attic/development/) with a revival checklist;
+> development now happens on the host over CDP (see the docs site).
 
 ## Documentation
 

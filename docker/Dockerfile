@@ -1,0 +1,226 @@
+#
+# chromium-server-docker — single multi-stage image.
+#
+#   base       : shared Chromium server core (chromium, fonts, dbus,
+#                supervisor, socat). Not runnable on its own.
+#   debug      : headful + VNC/noVNC, for watching Chromium render while
+#                developing from the host over CDP.
+#   production : headless, CDP on :9222 via socat. Last stage, so an
+#                untargeted `build` yields production (fail-safe default).
+#
+# Build (run from the repository root — the build context `.` must be the
+# repo root so that COPY can see the *.conf / *.sh files there):
+#   container build --target production -t chromium-server:production -f docker/Dockerfile .
+#   container build --target debug      -t chromium-server:debug      -f docker/Dockerfile .
+#
+# Docs:
+#   https://uraitakahito.github.io/chromium-server-docker/
+#
+
+# ---------------------------------------------------------------------------
+# base — shared Chromium server core
+# ---------------------------------------------------------------------------
+
+# Debian 12.14 slim variant. Tag retained for human-readable provenance;
+# multi-arch manifest list digest pins the actual bits we resolve to
+# (arm64 under Apple Container on Apple silicon, amd64 in CI).
+FROM debian:bookworm-20260623-slim@sha256:60eac759739651111db372c07be67863818726f754804b8707c90979bda511df AS base
+
+# The image runs Chromium as an unprivileged system user. The user / group
+# are created with --system so their UID / GID land in the Debian system
+# range (100-999), avoiding collisions with arbitrary host UID / GID values
+# that build-time ARGs would have to pass through. (macOS hosts default to
+# GID 20 for the `staff` group, which collides with Debian's `dialout`
+# group at the same GID; an explicit `groupadd --gid 20` fails on those
+# hosts with no useful diagnostic.)
+#
+# Bind mounts are intentionally NOT used on chromium-server containers, so
+# matching host file ownership is not a requirement here. (The mothballed
+# development image in attic/ kept ARG-based user creation because it did
+# bind-mount source code under /app.)
+
+# Avoid warnings by switching to noninteractive for the build process
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG LANG=C.UTF-8
+ENV LANG="$LANG"
+ARG TZ=UTC
+ENV TZ="$TZ"
+
+#
+# Create unprivileged user + install runtime essentials.
+#
+# HEALTHCHECK depends on `curl`; keep it explicit here so future
+# refactors of this Dockerfile cannot silently drop it. `ca-certificates`
+# is needed for any TLS the container might do (CDP itself is plain HTTP
+# locally, but downstream code paths may reach TLS endpoints).
+#
+# We intentionally do NOT pull in a wider utility set (jq, htop, sudo,
+# manpages, etc.). This image is driven externally over CDP and is not
+# meant to be `container exec`-ed into for ad-hoc operations.
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl && \
+    groupadd --system chromium && \
+    useradd --system --gid chromium \
+            --create-home --shell /bin/bash chromium && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
+# Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
+# installs, work.
+# https://zenn.dev/tom1111/articles/0dc7cde5c8e9bf
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        chromium \
+        chromium-sandbox \
+        fonts-ipafont-gothic \
+        fonts-wqy-zenhei \
+        fonts-thai-tlwg \
+        fonts-kacst \
+        fonts-freefont-ttf && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+#
+# dbus daemon for session-bus wrapping
+#
+# Chromium probes the dbus session bus at startup for several
+# subsystems (Notifications, ScreenSaver, AT-SPI). Without any
+# session bus reachable, each probe emits a "Failed to connect to
+# the bus" line to stderr on every container launch.
+#
+# We install the `dbus` package because `start-chromium.sh` invokes
+# `dbus-run-session chromium ...`. That helper, shipped in `dbus`,
+# spawns a fresh per-process session bus, exports
+# DBUS_SESSION_BUS_ADDRESS for the wrapped command, forwards
+# SIGHUP/SIGTERM/SIGINT to the child, and tears the daemon down
+# when chromium exits. No long-lived dbus daemon is needed in
+# supervisord.
+#
+# Why NOT `dbus-x11` + DBUS_SESSION_BUS_ADDRESS=autolaunch:
+# `dbus-launch --autolaunch` (from `dbus-x11`) requires $DISPLAY
+# — it uses an X11 atom to coordinate daemons — and refuses to
+# spawn without it. Empirically broken in fully-headless containers
+# like this one, so `dbus-x11` is deliberately NOT installed.
+#
+# Scope: this silences SESSION-bus errors only. SYSTEM-bus probes
+# (UPower, NetworkManager, BlueZ) still fail because
+# `dbus-daemon --system` is intentionally not running — running it
+# would require a long-lived root daemon and contradict this image's
+# "thin CDP container" stance. Remaining system-bus stderr
+# noise is acknowledged and left for log-aggregation-layer
+# filtering.
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        dbus && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+#
+# supervisor for process management
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends supervisor && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+#
+# socat for Chrome DevTools Protocol port forwarding
+#
+# Why socat is required:
+#   Chromium's --remote-debugging-address=0.0.0.0 flag has been disabled or removed
+#   in recent versions for security reasons. The Chromium team has stated this flag
+#   "presents a security issue and should not be used" and there are "no plans to
+#   implement it in the new headless mode."
+#
+#   As a workaround, we use socat to forward external connections (0.0.0.0:9222)
+#   to Chromium's localhost-only debugging port (127.0.0.1:9223).
+#
+# References:
+#   - https://issues.chromium.org/issues/40261787
+#   - https://issues.chromium.org/issues/40279369
+#
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        socat && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
+
+# ---------------------------------------------------------------------------
+# debug — headful + VNC/noVNC, for watching Chromium render during
+# development. Driven over CDP exactly like production; the only additions
+# are a virtual display and its VNC delivery.
+#
+# The VNC stack comes from plain Debian packages (not the desktop-lite
+# devcontainer feature the mothballed development image used), so this
+# stage has no external repository pins. All processes — X server included
+# — are managed by supervisord, keeping the image's single process-model.
+#
+#   xvfb       : virtual X server (in-memory framebuffer, display :1)
+#   fluxbox    : minimal window manager (frames/titles for the browser window)
+#   x11vnc     : serves display :1 over VNC on :5901
+#   novnc      : browser-based VNC client pages
+#   websockify : bridges VNC (:5901) to WebSocket (:6080) for noVNC
+# ---------------------------------------------------------------------------
+FROM base AS debug
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        xvfb \
+        x11vnc \
+        fluxbox \
+        novnc \
+        websockify && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy supervisor configuration and startup config
+# (--chmod=644: the container runs as the non-root 'chromium' user; without
+# an explicit chmod, COPY preserves source permissions and a 600 source
+# would make the file unreadable for supervisord.)
+COPY --chmod=644 supervisord-debug.conf /etc/supervisor/conf.d/app.conf
+COPY --chmod=644 chromium-headful.conf /app/chromium-headful.conf
+
+# Same probe as production: the CDP endpoint is the contract, VNC is only
+# a viewing aid. Evaluated by Docker-compatible runtimes; Apple Container
+# ignores HEALTHCHECK (probe externally).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:9222/json/version || exit 1
+
+USER chromium
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]
+
+# ---------------------------------------------------------------------------
+# production — headless, CDP :9222 (DEFAULT: last stage in this file)
+# ---------------------------------------------------------------------------
+FROM base AS production
+
+# Copy supervisor configuration and startup config
+# Note: --chmod=644 is required because:
+#   - The container runs as 'chromium' user (non-root)
+#   - Without explicit chmod, COPY preserves the source file's permissions
+#   - If the source file has 600 permissions, supervisord cannot read it
+COPY --chmod=644 supervisord-headless.conf /etc/supervisor/conf.d/app.conf
+COPY --chmod=644 chromium-headless.conf /app/chromium-headless.conf
+
+# Health check for CDP availability.
+# Honored by Docker-compatible runtimes (e.g. the CI smoke job); Apple
+# Container does not evaluate HEALTHCHECK, so operational health there is
+# an external probe against http://<container-ip>:9222/json/version.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:9222/json/version || exit 1
+
+USER chromium
+
+# Headless mode execution (Xvfb not required)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]

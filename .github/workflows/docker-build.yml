@@ -20,7 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [production, development]
+        # Targets of the single multi-stage docker/Dockerfile. The mothballed
+        # development image (attic/development/) is intentionally NOT built
+        # here — see attic/development/README.md.
+        variant: [production, debug]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -30,14 +33,12 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
-          file: docker/${{ matrix.variant }}/Dockerfile
+          file: docker/Dockerfile
+          target: ${{ matrix.variant }}
           platforms: linux/amd64
           push: false
           load: true
           tags: chromium-server-docker:${{ matrix.variant }}
-          build-args: |
-            user_id=1001
-            group_id=1001
           cache-from: type=gha,scope=${{ matrix.variant }}
           cache-to: type=gha,scope=${{ matrix.variant }},mode=max
 
@@ -54,14 +55,12 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
-          file: docker/production/Dockerfile
+          file: docker/Dockerfile
+          target: production
           platforms: linux/amd64
           push: false
           load: true
           tags: chromium-server-docker:smoke
-          build-args: |
-            user_id=1001
-            group_id=1001
           cache-from: type=gha,scope=production
 
       - name: Start container
