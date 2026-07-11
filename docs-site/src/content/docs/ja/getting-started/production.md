@@ -49,15 +49,6 @@ Chromium 自体は `127.0.0.1:9223` だけを listen し、`socat` が `:9222` �
 橋渡しします。外部の CDP クライアントはコンテナ IP のポート `9222` に接続します。
 理由と確認方法は [Chrome DevTools Protocol](/ja/configuration/cdp/) を参照してください。
 
-## CDP を確認する
-
-```sh
-curl http://192.168.64.x:9222/json/version
-```
-
-Chromium のビルド情報と `webSocketDebuggerUrl` を含む JSON が返れば、
-CDP に到達できています。
-
 ## ヘルスとライフサイクル
 
 Dockerfile の `HEALTHCHECK` は Docker 互換ランタイム（CI の smoke ジョブ）では

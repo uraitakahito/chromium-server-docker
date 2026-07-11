@@ -58,7 +58,8 @@ export default defineConfig({
           label: "Getting started",
           items: [
             { label: "Production (headless)", slug: "getting-started/production" },
-            { label: "Development (noVNC)", slug: "getting-started/development" },
+            { label: "Development (host + CDP)", slug: "getting-started/development" },
+            { label: "Verifying workers", slug: "getting-started/verify" },
           ],
         },
         {

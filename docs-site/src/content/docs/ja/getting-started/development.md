@@ -1,9 +1,9 @@
 ---
 title: 開発（ホスト + CDP）
-description: macOS ホスト側で開発し、debug ターゲットの Chromium コンテナを CDP で駆動、noVNC で描画を観察する。
+description: macOS ホスト側で開発し、debug ターゲットの Chromium コンテナを CDP で駆動。noVNC や chrome://inspect で描画を観察する。
 ---
 
-開発は**ホスト側**で行います。エディタ・Node.js（puppeteer-core）などのツール一式は
+開発は**ホスト側**で行います。エディタ・Node.js などのツール一式は
 macOS 上で動かし、Chromium は単一 multi-stage `docker/Dockerfile` の `debug`
 ターゲットから作ったコンテナで動かします — headful で、仮想ディスプレイを
 VNC/noVNC 越しに観察できます。
@@ -15,7 +15,7 @@ VNC/noVNC 越しに観察できます。
 
 :::note
 このページのコマンドはすべて**リポジトリルートで実行**する前提です
-（ビルドコンテキストが `.` であり、`./bin/dev.sh` も相対パスで呼び出すため）。
+（ビルドコンテキストが `.` であり、`bin/` のヘルパも相対パスで呼び出すため）。
 
 以前の「コンテナ内完結」開発環境（Node.js・dotfiles・Claude Code・VS Code attach）は
 `attic/development/` に**凍結保管**しています。経緯と復活手順は
@@ -42,43 +42,25 @@ CDP  : http://192.168.64.x:9222/json/version
 noVNC: http://192.168.64.x:6080/vnc.html
 ```
 
-手動でやる場合:
-
-```sh
-container build --target debug -t chromium-server:debug -f docker/Dockerfile .
-container run -d --rm --cpus 4 --memory 4g --name chromium-debug chromium-server:debug
-container ls   # IP 列を参照
-```
-
 :::caution
 初回接続時に macOS が**ローカルネットワーク**権限を求めることがあります。
 接続元アプリ（ターミナル・ブラウザ）と Container ランタイムの**両方**を許可してください。
 許可漏れは empty reply やハングとして現れます。
 :::
 
-## ホストから駆動する
+## 目視で確認する
 
-Chromium の駆動方法は production と同じ CDP です。ホストの `puppeteer-core` から:
-
-```js
-const puppeteer = require('puppeteer-core');
-
-const browser = await puppeteer.connect({
-  browserURL: 'http://192.168.64.x:9222',
-});
-const page = await browser.newPage();
-await page.goto('https://example.com');
-```
-
-## 描画を観察する
-
-ブラウザで noVNC の URL を開き **Connect** を押します:
+`./bin/dev.sh` が表示した noVNC の URL を開き **Connect** を押します:
 
 ```text
 http://192.168.64.x:6080/vnc.html
 ```
 
 fluxbox の枠付き headful Chromium が、CDP クライアントの操作どおりに動く様子が見えます。
+
+ツール追加ゼロで **headless** worker にも使える代替手段 —
+`chrome://inspect` の DevTools スクリーンキャスト — は
+[worker の動作確認](/getting-started/verify/) を参照してください。
 
 ## プロセス管理
 
@@ -88,12 +70,6 @@ fluxbox の枠付き headful Chromium が、CDP クライアントの操作ど�
 ```sh
 container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf status
 container exec -it chromium-debug supervisorctl -c /etc/supervisor/conf.d/app.conf restart chromium
-```
-
-## CDP を確認する
-
-```sh
-curl http://192.168.64.x:9222/json/version
 ```
 
 ## 次のステップ
