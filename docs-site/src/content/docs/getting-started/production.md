@@ -49,15 +49,6 @@ Chromium itself listens only on `127.0.0.1:9223`; `socat` bridges `:9222`
 to it. External CDP clients connect to port `9222` on the container IP. See
 [Chrome DevTools Protocol](/configuration/cdp/) for why, and how to verify.
 
-## Verify CDP
-
-```sh
-curl http://192.168.64.x:9222/json/version
-```
-
-A JSON payload with the Chromium build and the `webSocketDebuggerUrl` means
-CDP is reachable.
-
 ## Health and lifecycle
 
 The Dockerfile's `HEALTHCHECK` is honored by Docker-compatible runtimes
