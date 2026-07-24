@@ -47,7 +47,8 @@ curl http://192.168.64.x:9222/json/version
 ## Watching rendering — chrome://inspect (zero tooling, headless too)
 
 Open `chrome://inspect/#devices` in the host Chrome, press **Configure…**
-and add the worker endpoint `192.168.64.x:9222`.
+and add the worker endpoint `192.168.64.x:9222` — use the **IP**, not a
+hostname (see the caution below for why a name is silently rejected).
 
 The worker's tabs appear under **Remote Target**; click **inspect** to open
 DevTools with a **live screencast** of the page. This works for the
@@ -58,10 +59,19 @@ worker). Navigate using the URL bar at the top of the screencast (or the
 Console), and use the full DevTools (Network, Elements, Console) as usual.
 
 :::caution
-If the endpoint is registered incorrectly (e.g. a **wrong port number**),
-there is no error — **nothing appears under Remote Target and no inspect
-link shows up**. The port is `9222`; check reachability with
-`curl http://<IP>:9222/json/version`. Worker IPs also change across
+**Register the IP, not a hostname.** Chromium's CDP HTTP endpoint
+(`/json/*`) rejects any request whose `Host` header is not an IP address or
+`localhost` — a DNS-rebinding safeguard. So a hostname (a DNS / container
+service name such as `chromium-1`, even one that resolves) makes Chromium
+answer `Host header is specified and is not an IP address or localhost.`,
+and **nothing appears under Remote Target**. Only an IP (or `localhost`)
+works. As a bonus, `webSocketDebuggerUrl` is derived from that `Host`, so an
+IP request yields an IP-based ws URL the DevTools frontend can actually reach.
+
+If the endpoint is otherwise registered incorrectly (e.g. a **wrong port
+number**), there is likewise no error — **nothing appears under Remote
+Target and no inspect link shows up**. The port is `9222`; check reachability
+with `curl http://<IP>:9222/json/version`. Worker IPs also change across
 restarts, so re-add the endpoint in **Configure…** after restarting a worker.
 
 Do not use the "Open tab with url" field on the inspect page: it relies on
