@@ -47,7 +47,8 @@ curl http://192.168.64.x:9222/json/version
 ## 目視で確認する — chrome://inspect（ツール追加ゼロ・headless でも映る）
 
 ホストの Chrome で `chrome://inspect/#devices` を開き、**Configure…** に
-worker のエンドポイント `192.168.64.x:9222` を追加します。
+worker のエンドポイント `192.168.64.x:9222` を追加します。登録には必ず
+**IP** を使ってください（ホスト名では不可 — 理由は下の注意参照）。
 
 **Remote Target** に worker のタブが並ぶので **inspect** をクリックすると、
 DevTools が開いて**スクリーンキャストに描画がライブ表示**されます。
@@ -59,7 +60,18 @@ DevTools が開いて**スクリーンキャストに描画がライブ表示**�
 そのまま使えます。
 
 :::caution
-エンドポイントの登録を間違えると（**ポート番号の誤り**など）、エラーは出ずに
+**登録は IP で。ホスト名は不可。** Chromium の CDP エンドポイント
+（`/json/*`）は、リクエストの **`Host` ヘッダが「IP アドレス」でも
+「localhost」でもないと拒否**します（DNS リバインディング攻撃対策）。
+そのため、ホスト名（DNS/コンテナのサービス名。例 `chromium-1`。名前解決
+できるものでも）だと Chromium が
+`Host header is specified and is not an IP address or localhost.` を返し、
+**Remote Target に何も表示されません**。受理されるのは IP（または
+`localhost`）だけです。加えて `webSocketDebuggerUrl` はこの `Host` から
+生成されるため、IP で問い合わせれば DevTools が実際に届く IP ベースの
+ws URL が返る、という利点もあります。
+
+これ以外の登録ミス（**ポート番号の誤り**など）でも同様にエラーは出ず、
 **Remote Target に何も表示されず、inspect リンクも現れません**。ポートは
 `9222` です。疎通は `curl http://<IP>:9222/json/version` で確認できます。
 また worker の IP は再起動ごとに変わるため、再起動後は **Configure…** への
