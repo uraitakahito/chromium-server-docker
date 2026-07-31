@@ -53,24 +53,53 @@ export default defineConfig({
         root: { label: "English", lang: "en" },
         ja: { label: "日本語", lang: "ja" },
       },
+      // Every entry carries a `ja` translation. Starlight localises pages but
+      // not navigation, so without these the Japanese docs are translated
+      // pages hanging off an English index.
       sidebar: [
         {
           label: "Getting started",
+          translations: { ja: "はじめに" },
           items: [
-            { label: "Production (headless)", slug: "getting-started/production" },
-            { label: "Verifying workers", slug: "getting-started/verify" },
+            {
+              label: "Production (headless)",
+              translations: { ja: "本番（headless）" },
+              slug: "getting-started/production",
+            },
+            {
+              label: "Verifying workers",
+              translations: { ja: "worker の動作確認" },
+              slug: "getting-started/verify",
+            },
           ],
         },
         {
           label: "Configuration",
+          translations: { ja: "設定" },
           items: [
-            { label: "Chromium flags", slug: "configuration/chromium-flags" },
-            { label: "Chrome DevTools Protocol", slug: "configuration/cdp" },
+            {
+              label: "Chromium flags",
+              translations: { ja: "Chromium フラグ" },
+              slug: "configuration/chromium-flags",
+            },
+            {
+              // The protocol's own name — not a phrase to translate.
+              label: "Chrome DevTools Protocol",
+              translations: { ja: "Chrome DevTools Protocol" },
+              slug: "configuration/cdp",
+            },
           ],
         },
         {
           label: "Internals",
-          items: [{ label: "Driving model & dbus", slug: "internals/driving-model" }],
+          translations: { ja: "内部構造" },
+          items: [
+            {
+              label: "Driving model & dbus",
+              translations: { ja: "駆動モデルと dbus" },
+              slug: "internals/driving-model",
+            },
+          ],
         },
       ],
     }),
