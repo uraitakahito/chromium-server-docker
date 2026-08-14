@@ -25,7 +25,7 @@
 # Debian 12.14 slim variant. Tag retained for human-readable provenance;
 # multi-arch manifest list digest pins the actual bits we resolve to
 # (arm64 under Apple Container on Apple silicon, amd64 in CI).
-FROM debian:bookworm-20260623-slim@sha256:60eac759739651111db372c07be67863818726f754804b8707c90979bda511df AS base
+FROM debian:bookworm-20260803-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 AS base
 
 # The image runs Chromium as an unprivileged system user. The user / group
 # are created with --system so their UID / GID land in the Debian system
