@@ -1,14 +1,60 @@
 version: 2
 updates:
-  # --- Docker base images (FROM lines in both Dockerfiles) ---
-  - package-ecosystem: docker
-    directories:
-      - /docker/production
-      - /docker/development
+  # --- npm (docs-site) ---
+  #
+  # この repo の npm プロジェクトは docs-site/ の 1 つだけ(root に
+  # package.json は無い)。entry が無いと Dependabot は既定で動き、PR が
+  # default branch(main)宛てに出る。develop に積んで release で main へ、
+  # という運用に対して main 宛ての PR は行き場がなく放置される。
+  #
+  # docs-site は Astro のビルド依存しか無く個別に判断する意味が薄いので
+  # 1 グループにまとめ、上限も 1 にする。ただし astro 本体は major を跨ぐ
+  # 更新が来るため **グループから除く** —— 小さい更新と同じ PR に載ると、
+  # 何かが壊れたときどちらが原因か切り分けられない。
+  - package-ecosystem: npm
+    directory: /docs-site
     target-branch: develop
     schedule:
       interval: weekly
       day: monday
+    # 版が枯れてから PR 化する(supply-chain 対策)。security 更新には適用されない
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    open-pull-requests-limit: 2
+    versioning-strategy: increase
+    labels:
+      - dependencies
+      - docs
+    groups:
+      docs-site:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "astro"
+          - "@astrojs/*"
+      astro:
+        patterns:
+          - "astro"
+          - "@astrojs/*"
+
+  # --- Docker base images (FROM lines in both Dockerfiles) ---
+  - package-ecosystem: docker
+    # 実体は docker/Dockerfile 1 本。以前は /docker/production と
+    # /docker/development を指していたが **どちらも存在せず**、docker の PR は
+    # 過去 1 件も出ていなかった。存在しないパスはエラーにならず黙って何も
+    # 見つけないので、気づけない形の失敗になる。
+    #
+    # attic/ にも Dockerfile があるが退避場所なので対象にしない
+    # (追跡すると使っていないものの更新 PR が毎週来る)。
+    directory: /docker
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    # 新しすぎる base image を避ける(docker は default-days のみ対応)
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     labels:
       - docker
