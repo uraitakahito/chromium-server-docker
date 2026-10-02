@@ -2,7 +2,7 @@ name: Hadolint
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'docker/**/Dockerfile'
       - '.hadolint.yaml'
