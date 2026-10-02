@@ -2,7 +2,7 @@ name: docker-build
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'docker/**'
       - 'chromium-*.conf'

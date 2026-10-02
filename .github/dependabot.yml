@@ -2,10 +2,8 @@ version: 2
 updates:
   # --- npm (docs-site) ---
   #
-  # この repo の npm プロジェクトは docs-site/ の 1 つだけ(root に
-  # package.json は無い)。entry が無いと Dependabot は既定で動き、PR が
-  # default branch(main)宛てに出る。develop に積んで release で main へ、
-  # という運用に対して main 宛ての PR は行き場がなく放置される。
+  # この repo の npm プロジェクトは docs-site/ の 1 つだけ(root に package.json は無い)。
+  # PR は default branch (main) 宛てに出る (target-branch を書かない)。
   #
   # docs-site は Astro のビルド依存しか無く個別に判断する意味が薄いので
   # 1 グループにまとめ、上限も 1 にする。ただし astro 本体は major を跨ぐ
@@ -13,7 +11,6 @@ updates:
   # 何かが壊れたときどちらが原因か切り分けられない。
   - package-ecosystem: npm
     directory: /docs-site
-    target-branch: develop
     schedule:
       interval: weekly
       day: monday
@@ -48,7 +45,6 @@ updates:
     # attic/ にも Dockerfile があるが退避場所なので対象にしない
     # (追跡すると使っていないものの更新 PR が毎週来る)。
     directory: /docker
-    target-branch: develop
     schedule:
       interval: weekly
       day: monday
@@ -62,7 +58,6 @@ updates:
   # --- GitHub Actions (SHA-pinned in workflows) ---
   - package-ecosystem: github-actions
     directory: /
-    target-branch: develop
     schedule:
       interval: weekly
       day: monday

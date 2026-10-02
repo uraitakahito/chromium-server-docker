@@ -2,15 +2,15 @@ name: docs-site
 
 # Build the Astro + Starlight docs site in docs-site/ and publish it to GitHub Pages.
 #   - pull_request: build only (a read-only check; never deploys).
-#   - push to main / manual dispatch: build + deploy to Pages.
+#   - push of a release tag (v*) / manual dispatch on a tag: build + deploy to
+#     Pages, so the published docs are those of a released version. A push to
+#     main does not publish; the github-pages environment allows deployments
+#     from v* tags only (gh workflow run docs-site.yml --ref vX.Y.Z).
 # Enable once under Settings -> Pages -> Source: "GitHub Actions".
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'docs-site/**'
-      - '.github/workflows/docs-site.yml'
+    tags: ['v*']
   pull_request:
     paths:
       - 'docs-site/**'
@@ -48,7 +48,7 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    # PRs run the build check only; publishing happens on main / manual dispatch.
+    # PRs run the build check only; publishing happens on a release tag / manual dispatch.
     if: ${{ github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest
