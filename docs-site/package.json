@@ -1,4 +1,14 @@
 {
+  "//": [
+    "How to comment in package.json:",
+    "https://stackoverflow.com/questions/14221579/how-do-i-add-comments-to-package-json-for-npm-install",
+    "",
+    "overrides: lift what an upstream still pins to a vulnerable line onto the fixed line.",
+    "@expressive-code/core > postcss-nested: core 0.44.2 asks for ^6.0.1, and the postcss-selector-parser 6",
+    "that 6 brings in is hit by GHSA-rj75-hqrm-r3gf (moderate, fixed in 7.1.6). No 6.x is fixed.",
+    "With 7, the docs build the same output (CSS and HTML).",
+    "Remove when @expressive-code/core asks for postcss-nested 7 or later."
+  ],
   "name": "chromium-server-docker-docs",
   "type": "module",
   "private": true,
@@ -12,5 +22,10 @@
     "@astrojs/starlight": "^0.41.7",
     "astro": "^7.2.0",
     "satteri": "^0.9.5"
+  },
+  "overrides": {
+    "@expressive-code/core": {
+      "postcss-nested": "^7.0.2"
+    }
   }
 }
