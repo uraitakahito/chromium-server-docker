@@ -82,13 +82,28 @@ jobs:
           exit 1
       # The bundled exporters answer on their own ports. chromium-browser is
       # exactly 1 (the parent process); renderers come and go, so only their
-      # presence is checked.
+      # presence is checked. Renderers may still be spawning right after CDP
+      # comes up, so retry for a few seconds. On failure, print what the
+      # exporters said and the process list, so the log explains itself.
       - name: Verify the bundled exporters
         run: |
-          curl -sf http://localhost:9100/metrics | grep -q '^node_memory_MemTotal_bytes '
-          curl -sf http://localhost:9256/metrics | grep -q '^namedprocess_namegroup_num_procs{groupname="chromium-browser"} 1$'
-          curl -sf http://localhost:9256/metrics | grep -q '^namedprocess_namegroup_num_procs{groupname="chromium-renderer"} '
-          echo "exporters answer: node_exporter on :9100, process-exporter on :9256 (browser=1, renderer present)"
+          node=""; procs=""
+          for i in $(seq 1 15); do
+            node=$(curl -sf http://localhost:9100/metrics | grep '^node_memory_MemTotal_bytes ' || true)
+            procs=$(curl -sf http://localhost:9256/metrics | grep '^namedprocess_namegroup_num_procs' || true)
+            if [ -n "$node" ] \
+              && printf '%s\n' "$procs" | grep -q 'groupname="chromium-browser"} 1$' \
+              && printf '%s\n' "$procs" | grep -q 'groupname="chromium-renderer"} '; then
+              printf '%s\n' "$node" "$procs"
+              echo "exporters answer after ${i}s: node_exporter on :9100, process-exporter on :9256 (browser=1, renderer present)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "exporters did not report the expected lines within 15s" >&2
+          printf '%s\n' "--- node_exporter:" "$node" "--- process-exporter:" "$procs"
+          docker exec smoke ps -eo pid,ppid,comm,args || true
+          exit 1
 
       - name: Capture logs on failure
         if: failure()
