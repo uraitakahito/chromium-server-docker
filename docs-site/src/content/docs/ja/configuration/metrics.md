@@ -23,13 +23,20 @@ network の中から**、コンテナの DNS 名で scrape する前提である
 
 | `groupname` | 当たるもの |
 | --- | --- |
-| `chromium-renderer`・`chromium-gpu-process`・`chromium-utility`・`chromium-zygote` … | `/usr/lib/chromium/chromium … --type=<type>` |
-| `chromium-browser` | 親の `/usr/lib/chromium/chromium`（`--type` 無し） |
+| `chromium-renderer`・`chromium-gpu-process`・`chromium-utility`・`chromium-zygote` … | `--type=<type>` を持つ `chromium` の process |
+| `chromium-browser` | 親の `chromium` の process（`--type` 無し） |
 | `chrome_crashpad` | crashpad handler |
 | `supervisord`・`socat` | ほかの 2 つの常駐 program |
 
 catch-all の規則は意図して置いていない。`{{.Comm}}` と `.+` を置くと、scrape の間に
-生まれる `sh` や `curl` が 1 つずつ群になる（実測: 約 100 のはずの series が 1,005 に）。
+生まれる `sh` や `curl` が 1 つずつ群になり、series が膨れる。どの規則にも当たらない
+process（`dbus-run-session`・`dbus-daemon`・起動 script）は数えない（`-children=false`）。
+
+親は path ではなく `comm` で当てている。process-exporter は process を最初に見たときに
+群を決めて、その pid の間は変えない。Chromium は Debian の `/usr/bin/chromium` wrapper
+から起動し、wrapper が同じ pid で本物の binary を `exec()` するので、Chromium と同時に
+起動した exporter は wrapper を先に見る。`/usr/lib/chromium/chromium` に anchor した規則は
+それを取りこぼし続けるが、`comm` は wrapper でも binary でも `chromium` である。
 
 よく使う series:
 

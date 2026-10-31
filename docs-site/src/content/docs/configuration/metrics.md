@@ -25,14 +25,22 @@ browser process:
 
 | `groupname` | Matches |
 | --- | --- |
-| `chromium-renderer`, `chromium-gpu-process`, `chromium-utility`, `chromium-zygote`, … | `/usr/lib/chromium/chromium … --type=<type>` |
-| `chromium-browser` | the parent `/usr/lib/chromium/chromium` process (no `--type`) |
+| `chromium-renderer`, `chromium-gpu-process`, `chromium-utility`, `chromium-zygote`, … | a `chromium` process carrying `--type=<type>` |
+| `chromium-browser` | the parent `chromium` process (no `--type`) |
 | `chrome_crashpad` | the crashpad handler |
 | `supervisord`, `socat` | the two other long-running programs |
 
 There is deliberately no catch-all rule: with `{{.Comm}}` + `.+` every
-transient `sh` or `curl` spawned during a scrape becomes its own group
-(measured: 1,005 series instead of roughly 100).
+transient `sh` or `curl` spawned during a scrape becomes its own group and the
+series count balloons. Processes that match no rule (`dbus-run-session`,
+`dbus-daemon`, the start script) are not counted at all (`-children=false`).
+
+The parent is matched by `comm`, not by its path: process-exporter assigns a
+process to a group the first time it sees it. Chromium starts through Debian's
+`/usr/bin/chromium` wrapper, which `exec()`s the real binary under the same pid,
+so an exporter that starts together with Chromium sees the wrapper first. A rule
+anchored on `/usr/lib/chromium/chromium` misses it for good; `comm` is `chromium`
+for both.
 
 Useful series:
 
