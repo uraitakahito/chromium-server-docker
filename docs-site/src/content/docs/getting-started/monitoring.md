@@ -50,7 +50,9 @@ likely culprit.
 ./bin/stack.sh down     # stops the containers; they stay until `container rm`
 ```
 
-`check` verifies three layers: the three published ports (3000, 9090, 9222) answer, every
+`check` verifies three layers (`--wait` retries for up to 120 s, because the
+`<service>.chromium-server` names can take about a minute to resolve after
+start): the three published ports (3000, 9090, 9222) answer, every
 Prometheus scrape target is `up`, and process-exporter inside the worker counts
 exactly one parent `chromium`. A failing line is named, and the script exits
 non-zero.
@@ -91,11 +93,13 @@ delivered is a separate decision.
 
 ## Why the stack looks the way it does
 
-- **`user: "0"` on Prometheus and Grafana.** Named volumes are root-owned on
-  Apple Container (measured): Grafana (uid 472) dies with
-  `mkdir /var/lib/grafana/plugins: Permission denied`, Prometheus (nobody)
-  never starts. Running as root inside a VM that only listens on the host's
-  loopback is the pragmatic fix for a development tool.
+- **No data volumes.** Prometheus and Grafana write to their own container
+  filesystem: the data survives `container stop` / `start` and is gone when the
+  stack is recreated (`up`) or the containers are removed. This is a
+  development tool, so nothing needs to outlive that. It also keeps the images'
+  own users (nobody, grafana): a named volume would be root-owned on Apple
+  Container (measured: Grafana died with `mkdir /var/lib/grafana/plugins:
+  Permission denied`) and would have forced `user: "0"`.
 - **The Prometheus URL is in a provisioning file, not in `environment:`.**
   container-compose may rewrite an environment value that equals a service
   name into that service's IP, silently.
