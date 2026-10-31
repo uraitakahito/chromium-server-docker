@@ -95,6 +95,10 @@ delivered is a separate decision.
   stage is `production`, so the same image is built.
 - **No `container_name:`** — it would suppress the `<service>.chromium-server`
   DNS naming.
+- **The blackbox probe sends `Host: localhost`.** Chromium's DevTools HTTP
+  endpoint answers `500 Host header is specified and is not an IP address or
+  localhost` to any other Host (DNS-rebinding protection), so a probe that
+  simply used the DNS name reported CDP as down while it was fine.
 
 ## Reusing the scrape config elsewhere
 

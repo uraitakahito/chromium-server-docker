@@ -85,6 +85,9 @@ Grafana は 30 秒以内に file を拾う。
 - **`build.target` は無視される**（container-compose）。Dockerfile の最後の段が `production` なので
   同じイメージが建つ。
 - **`container_name:` は書かない。** `<service>.chromium-server` の DNS 命名が抑止される。
+- **blackbox の probe は `Host: localhost` を送る。** Chromium の DevTools の HTTP 口は、Host が
+  IP か `localhost` でないと `500 Host header is specified and is not an IP address or localhost`
+  を返す（DNS rebinding の守り）。DNS 名をそのまま使った probe は、CDP が生きているのに down と言っていた。
 
 ## scrape 設定をほかで使う
 

@@ -8,3 +8,9 @@ modules:
       # between the VMs — force IPv4.
       preferred_ip_protocol: ip4
       ip_protocol_fallback: false
+      # Chromium's DevTools HTTP endpoint refuses a Host header that is not an
+      # IP literal or "localhost" (500 "Host header is specified and is not an
+      # IP address or localhost", DNS-rebinding protection). The probe therefore
+      # connects to chromium.chromium-server but presents Host: localhost.
+      headers:
+        Host: localhost

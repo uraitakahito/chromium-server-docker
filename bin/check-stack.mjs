@@ -66,6 +66,21 @@ const inspect = async () => {
     } catch (error) {
       problems.push(`could not list Prometheus targets (${String(error.message).split("\n")[0]})`);
     }
+    // The chromium-cdp target being `up` only says blackbox answered Prometheus.
+    // Whether CDP itself answered is the probe's result.
+    try {
+      const url = `${PROMETHEUS}/api/v1/query?query=${encodeURIComponent('probe_success{job="chromium-cdp"}')}`;
+      const { data } = await (await get(url)).json();
+      const value = data.result[0]?.value[1];
+      if (value === "1") {
+        rows.push(["✓", "probe chromium-cdp", "probe_success = 1 (CDP /json/version answered blackbox)"]);
+      } else {
+        rows.push(["✗", "probe chromium-cdp", `probe_success = ${value ?? "(no sample yet)"}`]);
+        problems.push(`blackbox cannot reach CDP: probe_success{job="chromium-cdp"} is ${value ?? "absent"} (chromium starting, or the probe's Host header is refused)`);
+      }
+    } catch (error) {
+      problems.push(`could not query probe_success (${String(error.message).split("\n")[0]})`);
+    }
   }
 
   // Layer 3: inside the chromium container. The exporter ports are not published,
