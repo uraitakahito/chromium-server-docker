@@ -62,9 +62,15 @@ another compose project's network lists that project's container names:
 scrape_configs:
   - job_name: chromium-node
     static_configs: [{ targets: ["chromium-1.capture-ledger:9100", "chromium-2.capture-ledger:9100"] }]
+    relabel_configs: [{ source_labels: [__address__], regex: "([^:]+)(?::[0-9]+)?", target_label: instance }]
   - job_name: chromium-process
     static_configs: [{ targets: ["chromium-1.capture-ledger:9256", "chromium-2.capture-ledger:9256"] }]
+    relabel_configs: [{ source_labels: [__address__], regex: "([^:]+)(?::[0-9]+)?", target_label: instance }]
 ```
+
+The relabel sets `instance` to the container name without the port, which the
+dashboard and the rules of the [Monitoring stack](/getting-started/monitoring/)
+expect.
 
 ## Verifying
 

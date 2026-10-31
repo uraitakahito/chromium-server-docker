@@ -5,7 +5,7 @@
 #
 #   ./bin/stack.sh up       # preflight → container-compose up -d -b → wait until everything answers
 #   ./bin/stack.sh down     # stop the containers (they stay; `container rm` deletes them)
-#   ./bin/stack.sh check    # is everything answering? (add --wait to retry for up to 60 s)
+#   ./bin/stack.sh check    # is everything answering? (add --wait to retry for up to 120 s)
 #   ./bin/stack.sh reload   # tell Prometheus to re-read prometheus.yml and the rules
 #
 # Why a script and not a raw `container-compose up`: container-compose has no

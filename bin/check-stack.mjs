@@ -2,7 +2,9 @@
 //
 // Three layers, in order:
 //   1. the ports published on the host's loopback: Prometheus, Grafana, CDP
-//   2. every Prometheus scrape target is `up` (the DNS names inside the stack resolve)
+//   2. every Prometheus scrape target is `up` (the DNS names inside the stack resolve),
+//      and the chromium-* jobs carry instance = the container name without the port
+//      (the dashboard's $instance variable and the rule summaries rely on it)
 //   3. inside the chromium container, process-exporter counts exactly one parent chromium
 //
 // Node 22+ built-ins only (fetch, child_process). `--wait` retries for up to 120 s,
@@ -60,6 +62,9 @@ const inspect = async () => {
         } else if (target.health !== "up") {
           rows.push(["✗", `target ${job}`, target.scrapeUrl]);
           problems.push(`scrape job ${job} is ${target.health}: ${target.lastError || "(no error text)"}`);
+        } else if (job !== "prometheus" && target.labels.instance !== CHROMIUM) {
+          rows.push(["✗", `target ${job}`, `instance = ${target.labels.instance}`]);
+          problems.push(`scrape job ${job} has instance ${target.labels.instance}, expected ${CHROMIUM} (the relabel_configs in prometheus.yml; the dashboard's $instance needs the container name without the port)`);
         } else {
           rows.push(["✓", `target ${job}`, target.scrapeUrl]);
         }

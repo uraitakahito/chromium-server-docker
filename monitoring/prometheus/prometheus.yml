@@ -1,5 +1,11 @@
 # Prometheus for the chromium-server development stack (docker-compose.yml).
 # Targets are the <service>.chromium-server names of this compose project.
+#
+# `instance` is the container name without the port (chromium.chromium-server)
+# in every chromium-* job, so the node, process and cdp series of one container
+# share it. The dashboard's $instance variable and the rule summaries rely on
+# this; a downstream stack that reuses chromium.json and rules/chromium.yml has
+# to relabel the same way.
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -12,11 +18,19 @@ scrape_configs:
   - job_name: chromium-node
     static_configs:
       - targets: ["chromium.chromium-server:9100"]
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: "([^:]+)(?::[0-9]+)?"
+        target_label: instance
 
   # Per-process-group metrics (process-exporter, grouped by chromium --type).
   - job_name: chromium-process
     static_configs:
       - targets: ["chromium.chromium-server:9256"]
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: "([^:]+)(?::[0-9]+)?"
+        target_label: instance
 
   # CDP liveness through blackbox: GET /json/version must answer 2xx.
   - job_name: chromium-cdp
@@ -29,6 +43,7 @@ scrape_configs:
       - source_labels: [__address__]
         target_label: __param_target
       - source_labels: [__param_target]
+        regex: "https?://([^:/]+).*"
         target_label: instance
       - target_label: __address__
         replacement: blackbox.chromium-server:9115

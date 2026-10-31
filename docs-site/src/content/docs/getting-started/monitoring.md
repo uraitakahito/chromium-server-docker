@@ -35,17 +35,18 @@ exists.
 
 ## One stack at a time
 
-The consumers' stacks (capture-ledger, browserhive) publish their own chromium
-on the same loopback ports. Never run this stack next to one of them: stop the
-other first (`pnpm run dev:down` / `pnpm run stack:down` there). `bin/stack.sh
-up` refuses to start while something else holds `127.0.0.1:9222` and names the
-likely culprit.
+The consumers' stacks use the same loopback ports: capture-ledger publishes its
+chromium on `127.0.0.1:9222`, and browserhive's `monitoring` profile publishes
+its own Prometheus and Grafana on `127.0.0.1:9090` and `:3000`. Never run this
+stack next to one of them: stop the other first (`pnpm run dev:down` /
+`pnpm run stack:down` there). `bin/stack.sh up` refuses to start while something
+else holds `127.0.0.1:9222` and names the likely culprit.
 
 ## Start, check, stop
 
 ```sh
 ./bin/stack.sh up       # preflight → container-compose up -d -b → waits until everything answers
-./bin/stack.sh check    # the same checks again (add --wait to retry for up to 60 s)
+./bin/stack.sh check    # the same checks again (add --wait to retry for up to 120 s)
 ./bin/stack.sh reload   # Prometheus re-reads prometheus.yml and the rules
 ./bin/stack.sh down     # stops the containers; they stay until `container rm`
 ```
@@ -53,8 +54,9 @@ likely culprit.
 `check` verifies three layers (`--wait` retries for up to 120 s, because the
 `<service>.chromium-server` names can take about a minute to resolve after
 start): the three published ports (3000, 9090, 9222) answer, every
-Prometheus scrape target is `up`, and process-exporter inside the worker counts
-exactly one parent `chromium`. A failing line is named, and the script exits
+Prometheus scrape target is `up` with `instance` set to the container name
+(see below), and process-exporter inside the worker counts exactly one parent
+`chromium`. A failing line is named, and the script exits
 non-zero.
 
 Then open Grafana at <http://127.0.0.1:3000/d/chromium> — the dashboard
@@ -62,6 +64,10 @@ Then open Grafana at <http://127.0.0.1:3000/d/chromium> — the dashboard
 <http://127.0.0.1:9090/targets>.
 
 ## What is on the dashboard
+
+The `instance` variable at the top picks the containers (one here; several in
+a downstream stack). Every query is filtered by `job` and `instance`, and every
+legend starts with the container name.
 
 | Panel | Query | Reads |
 | --- | --- | --- |
@@ -112,9 +118,20 @@ delivered is a separate decision.
   localhost` to any other Host (DNS-rebinding protection), so a probe that
   simply used the DNS name reported CDP as down while it was fine.
 
-## Reusing the scrape config elsewhere
+## Reusing the dashboard and the rules elsewhere
 
-A stack that runs several workers (browserhive, capture-ledger) can copy the
-two `chromium-*` jobs from `monitoring/prometheus/prometheus.yml` and list its
-own container names, for example `chromium-1.browserhive:9100`. Where that
-Prometheus lives is that project's decision.
+A stack that runs several workers (browserhive, capture-ledger) can reuse three
+things from this repository, typically through its git submodule:
+
+- the `chromium-node`, `chromium-process` and `chromium-cdp` jobs of
+  `monitoring/prometheus/prometheus.yml`, with its own container names (for
+  example `chromium-1.browserhive:9100`);
+- `monitoring/grafana/dashboards/chromium.json` and
+  `monitoring/prometheus/rules/chromium.yml`, bind-mounted file by file.
+
+Both read two conventions, so keep them: the job names above, and `instance` =
+the container name without the port (`chromium-1.browserhive`), relabelled in
+every `chromium-*` job as `monitoring/prometheus/prometheus.yml` does. Without
+the relabel, the node and process series of one container carry different
+`instance` values (`:9100` and `:9256`) and the dashboard's variable cannot
+pick a container. Where that Prometheus lives is that project's decision.
