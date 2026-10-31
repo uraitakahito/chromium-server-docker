@@ -28,7 +28,7 @@ sudo container system dns create chromium-server   # マシンごとに 1 回
 ./bin/stack.sh up                                   # build → 起動 → 全部が答えるまで待つ
 ```
 
-CDP は `127.0.0.1:9222` に publish され、`bin/cdp.sh` は自分でそれを見つけます。
+CDP は `127.0.0.1:29222` に publish されます（host の 9222 は、自分の worker をそこに publish する利用者の stack に譲る）。`bin/cdp.sh` は自分でそれを見つけます。
 
 監視の道具なしで worker だけを手で起こす場合:
 
@@ -57,7 +57,7 @@ worker のヘルスは外部からプローブします。compose スタック�
 （blackbox → Prometheus、alert `ChromiumCdpDown`）。手でやるなら:
 
 ```sh
-curl -sf --max-time 5 http://127.0.0.1:9222/json/version >/dev/null && echo OK
+curl -sf --max-time 5 http://127.0.0.1:29222/json/version >/dev/null && echo OK
 ```
 
 `container stop` は SIGTERM を送り、猶予は **5 秒**です（Docker の既定は 10 秒）。

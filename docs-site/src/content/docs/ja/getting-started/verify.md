@@ -4,7 +4,7 @@ description: bin/cdp.sh によるワンショット CDP 確認と、chrome://ins
 ---
 
 worker は自分の IP の `:9222` に同じ CDP エンドポイントを公開しています。compose スタック
-（[監視スタック](/ja/getting-started/monitoring/)）はそれを `127.0.0.1:9222` にも publish し、
+（[監視スタック](/ja/getting-started/monitoring/)）はそれを `127.0.0.1:29222` にも publish し、
 `bin/cdp.sh` は既定でそこを使います。手で起こした worker の IP は `container ls` で確認してください。
 
 :::note

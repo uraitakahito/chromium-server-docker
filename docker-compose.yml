@@ -16,7 +16,7 @@
 # Grafana (uid 472) dies with "mkdir /var/lib/grafana/plugins: Permission
 # denied" and Prometheus (nobody) never comes up. Both therefore run as
 # user "0". This stack is a development tool and only listens on the host's
-# loopback (3000, 9090, 9222); the exporter ports 9100 / 9256 are not
+# loopback (3000, 9090, 29222); the exporter ports 9100 / 9256 are not
 # published at all — Prometheus scrapes them inside the container network.
 #
 # Prometheus' URL for Grafana lives in a provisioning FILE, not in
@@ -34,7 +34,11 @@ services:
       target: production
     mem_limit: 4gb
     ports:
-      - "127.0.0.1:9222:9222"   # CDP via socat (bin/cdp.sh). 9100 / 9256 stay unpublished.
+      # CDP via socat, for bin/cdp.sh. Host port 29222, not 9222: the consumers'
+      # stacks on the same machine publish their own chromium on 127.0.0.1:9222
+      # (capture-ledger) and 19222 (browserhive e2e), and this stack must be
+      # able to run next to them. 9100 / 9256 stay unpublished.
+      - "127.0.0.1:29222:9222"
 
   prometheus:
     image: docker.io/prom/prometheus:v3.15.1

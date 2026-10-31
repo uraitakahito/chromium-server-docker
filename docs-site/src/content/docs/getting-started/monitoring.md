@@ -11,7 +11,7 @@ shows a provisioned dashboard. Everything lives in `docker-compose.yml` and
 
 | Service | Image | Reached at |
 | --- | --- | --- |
-| `chromium` | built from `docker/Dockerfile` | `127.0.0.1:9222` (CDP, for `bin/cdp.sh`) |
+| `chromium` | built from `docker/Dockerfile` | `127.0.0.1:29222` (CDP, for `bin/cdp.sh`; 9222 on the host belongs to the consumers' stacks) |
 | `prometheus` | `prom/prometheus:v3.15.1` | `127.0.0.1:9090` |
 | `grafana` | `grafana/grafana:13.2.5` | `127.0.0.1:3000` (anonymous Viewer) |
 | `blackbox` | `prom/blackbox-exporter:v0.29.1` | inside the stack only |
@@ -42,7 +42,7 @@ exists.
 ./bin/stack.sh down     # stops the containers; they stay until `container rm`
 ```
 
-`check` verifies three layers: the three published ports answer, every
+`check` verifies three layers: the three published ports (3000, 9090, 29222) answer, every
 Prometheus scrape target is `up`, and process-exporter inside the worker counts
 exactly one parent `chromium`. A failing line is named, and the script exits
 non-zero.

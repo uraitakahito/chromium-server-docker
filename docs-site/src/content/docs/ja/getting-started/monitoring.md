@@ -10,7 +10,7 @@ description: docker-compose.yml が worker と Prometheus・Grafana・blackbox �
 
 | service | image | 届く先 |
 | --- | --- | --- |
-| `chromium` | `docker/Dockerfile` から build | `127.0.0.1:9222`（CDP。`bin/cdp.sh` が使う） |
+| `chromium` | `docker/Dockerfile` から build | `127.0.0.1:29222`（CDP。`bin/cdp.sh` が使う。host の 9222 は利用者の stack が使う） |
 | `prometheus` | `prom/prometheus:v3.15.1` | `127.0.0.1:9090` |
 | `grafana` | `grafana/grafana:13.2.5` | `127.0.0.1:3000`（anonymous の Viewer） |
 | `blackbox` | `prom/blackbox-exporter:v0.29.1` | stack の中だけ |
@@ -39,7 +39,7 @@ sudo container system dns create chromium-server
 ./bin/stack.sh down     # コンテナを止める（消すのは `container rm`）
 ```
 
-`check` は 3 層を見る: publish した 3 つの口が答える、Prometheus の scrape target が全部 `up`、
+`check` は 3 層を見る: publish した 3 つの口（3000・9090・29222）が答える、Prometheus の scrape target が全部 `up`、
 worker の中の process-exporter が親の `chromium` を 1 本と数える。落ちた行を名指しして
 非 0 で終わる。
 
