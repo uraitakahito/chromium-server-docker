@@ -1,0 +1,34 @@
+# process-exporter group definitions (Production · Headless)
+#
+# The first matching rule wins, so the `--type=` rule comes before the catch
+# for the parent browser process. Only the processes that live in this
+# container on purpose are counted: chromium (by --type), its crashpad handler,
+# supervisord and socat. There is deliberately NO catch-all rule: with
+# `{{.Comm}}` + `.+`, every transient `sh` / `curl` spawned during a scrape
+# becomes its own group and the series count balloons.
+#
+# Why the parent is matched by `comm` and not by its path: process-exporter
+# assigns a process to a group the first time it sees it and keeps that
+# assignment for the life of the pid. Chromium is started through Debian's
+# /usr/bin/chromium wrapper script, which later exec()s /usr/lib/chromium/chromium
+# under the SAME pid. An exporter that starts together with Chromium sees the
+# wrapper first (argv[0] = /bin/bash), so a rule anchored on the binary path
+# misses it forever and the browser ends up attributed to its ancestor.
+# `comm` is "chromium" for the wrapper and for the binary alike.
+#
+# Metrics come out as namedprocess_namegroup_*{groupname="..."}. Docs:
+#   https://uraitakahito.github.io/chromium-server-docker/configuration/metrics/
+process_names:
+  # renderer / gpu-process / utility / zygote ... — whatever Chromium passes.
+  # Both selectors must match: a chromium process that carries --type=.
+  - name: "chromium-{{.Matches.type}}"
+    comm: ["chromium"]
+    cmdline: ["--type=(?P<type>[a-z-]+)"]
+  # The parent browser process (no --type), see above.
+  - name: "chromium-browser"
+    comm: ["chromium"]
+  # /proc/<pid>/comm is truncated to 15 characters.
+  - name: "chrome_crashpad"
+    comm: ["chrome_crashpad"]
+  - name: "{{.Comm}}"
+    comm: ["supervisord", "socat"]
