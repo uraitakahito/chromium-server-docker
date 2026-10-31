@@ -35,6 +35,22 @@ npm --prefix docs-site ci
 npm --prefix docs-site run dev
 ```
 
+## Dependency updates
+
+Dependabot (`.github/dependabot.yml`) opens **one pull request per group, once a
+month**: the docs-site npm dependencies, the Docker base image, and the GitHub
+Actions. Security updates for docs-site are grouped into one more pull request
+and arrive whenever an alert appears. At most four Dependabot pull requests are
+open at any time.
+
+- **Merge when CI is green.** A docs-site PR builds the docs; a Docker PR builds
+  the image and checks CDP and the bundled exporters.
+- **Do not push commits onto a Dependabot PR.** Dependabot stops rebasing a PR
+  someone else has pushed to.
+- **After fixing a lockfile by hand** (for example `npm audit fix`), close the
+  Dependabot PRs it made obsolete in the same sitting. Dependabot does not close
+  security-update PRs whose alert was resolved another way.
+
 ## Related Projects
 
 - [BrowserHive](https://github.com/uraitakahito/browserhive) — a scalable web

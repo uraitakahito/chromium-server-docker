@@ -5,15 +5,15 @@ updates:
   # この repo の npm プロジェクトは docs-site/ の 1 つだけ(root に package.json は無い)。
   # PR は default branch (main) 宛てに出る (target-branch を書かない)。
   #
-  # docs-site は Astro のビルド依存しか無く個別に判断する意味が薄いので
-  # 1 グループにまとめ、上限も 1 にする。ただし astro 本体は major を跨ぐ
-  # 更新が来るため **グループから除く** —— 小さい更新と同じ PR に載ると、
-  # 何かが壊れたときどちらが原因か切り分けられない。
+  # docs-site は Astro のビルド依存しか無い。版の更新も勧告による更新も、それぞれ
+  # **1 本の PR にまとめる**(下の groups)。開いている Dependabot の PR は、このファイルの
+  # グループの数(docs-site・docs-site-security・docker・actions)で頭打ちになる。
+  #
+  # 間隔は月 1 回。勧告による更新は schedule にも cooldown にも縛られず、alert が出たときに来る。
   - package-ecosystem: npm
     directory: /docs-site
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     # 版が枯れてから PR 化する(supply-chain 対策)。security 更新には適用されない
     cooldown:
       default-days: 3
@@ -24,16 +24,20 @@ updates:
       - dependencies
       - docs
     groups:
+      # 版の更新は全部 1 本に。satteri(src/plugins/hast-rebase-links.ts)と
+      # @astrojs/markdown-satteri(astro.config.ts の processor)のように一緒に使う物が、
+      # 別の PR に分かれない。以前は astro と @astrojs/* を別のグループにしていて、
+      # 2 本のどちらから入れるかの判断が要った。PR の CI(docs-site.yml)が docs を build する。
       docs-site:
+        applies-to: version-updates
         patterns:
           - "*"
-        exclude-patterns:
-          - "astro"
-          - "@astrojs/*"
-      astro:
+      # 勧告による更新も 1 本に。グループが無いと 1 package 1 本で出て、別の道
+      # (npm audit fix など)で直した後も開いたまま残った(2026-10 に 6 本)。
+      docs-site-security:
+        applies-to: security-updates
         patterns:
-          - "astro"
-          - "@astrojs/*"
+          - "*"
 
   # --- Docker base images (FROM lines in both Dockerfiles) ---
   - package-ecosystem: docker
@@ -46,8 +50,7 @@ updates:
     # (追跡すると使っていないものの更新 PR が毎週来る)。
     directory: /docker
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     # 新しすぎる base image を避ける(docker は default-days のみ対応)
     cooldown:
       default-days: 3
@@ -59,8 +62,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     open-pull-requests-limit: 5
     labels:
       - ci
