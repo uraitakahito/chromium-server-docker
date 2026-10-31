@@ -1,0 +1,12 @@
+# The Prometheus URL is deliberately in this file and not in compose
+# environment: — container-compose may rewrite an environment value that
+# equals a service name into an IP.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus.chromium-server:9090
+    isDefault: true
+    editable: false

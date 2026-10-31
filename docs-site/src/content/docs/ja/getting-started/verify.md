@@ -3,8 +3,9 @@ title: worker の動作確認
 description: bin/cdp.sh によるワンショット CDP 確認と、chrome://inspect によるライブ目視。headless の production と debug のどちらの worker にも同じ手順が使える。
 ---
 
-worker は自分の IP の `:9222` に同じ CDP エンドポイントを公開しています。
-IP は `./bin/prod.sh` の出力か `container ls` で確認してください。
+worker は自分の IP の `:9222` に同じ CDP エンドポイントを公開しています。compose スタック
+（[監視スタック](/ja/getting-started/monitoring/)）はそれを `127.0.0.1:9222` にも publish し、
+`bin/cdp.sh` は既定でそこを使います。手で起こした worker の IP は `container ls` で確認してください。
 
 :::note
 コマンドはリポジトリルートで実行する前提です。初回接続時に macOS が

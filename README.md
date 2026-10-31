@@ -19,8 +19,8 @@ runtime (CI uses Docker).
 
 ## Documentation
 
-Full documentation (build, run, Chromium flags, CDP, metrics, and internals)
-lives on the docs site:
+Full documentation (build, run, the monitoring stack, Chromium flags, CDP,
+metrics, and internals) lives on the docs site:
 
 - **English** — <https://uraitakahito.github.io/chromium-server-docker/>
 - **日本語** — <https://uraitakahito.github.io/chromium-server-docker/ja/>

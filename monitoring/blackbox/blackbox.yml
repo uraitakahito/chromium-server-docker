@@ -1,0 +1,10 @@
+# blackbox_exporter modules for the chromium-server stack.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      # The DNS domain publishes AAAA records but there is no IPv6 route
+      # between the VMs — force IPv4.
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false

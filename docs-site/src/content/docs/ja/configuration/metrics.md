@@ -49,7 +49,9 @@ namedprocess_namegroup_open_filedesc{groupname="chromium-browser"}
 
 ## scrape
 
-同じコンテナ network の中で動く Prometheus なら:
+このリポジトリの開発スタックが既にこれをやっている —
+[監視スタック](/ja/getting-started/monitoring/)。target は `chromium.chromium-server:9100` と
+`:9256`。別の compose project の network で動く Prometheus なら、その project のコンテナ名を並べる:
 
 ```yaml
 scrape_configs:

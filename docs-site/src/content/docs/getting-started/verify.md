@@ -3,8 +3,10 @@ title: Verifying workers
 description: One-shot CDP checks with bin/cdp.sh and live viewing via chrome://inspect — works identically for headless production and debug workers.
 ---
 
-Every worker exposes the same CDP endpoint on `:9222` of its own IP.
-Get the IP from the `./bin/prod.sh` output, or from `container ls`.
+Every worker exposes the same CDP endpoint on `:9222` of its own IP. The
+compose stack ([Monitoring stack](/getting-started/monitoring/)) also publishes
+it on `127.0.0.1:9222`, and `bin/cdp.sh` uses that by default; for a manually
+started worker get the IP from `container ls`.
 
 :::note
 Commands assume the repository root. On the first connection macOS may ask

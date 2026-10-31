@@ -53,7 +53,10 @@ namedprocess_namegroup_open_filedesc{groupname="chromium-browser"}
 
 ## Scraping
 
-A Prometheus running inside the same container network:
+The repository's own development stack already does this —
+[Monitoring stack](/getting-started/monitoring/) — with the targets
+`chromium.chromium-server:9100` and `:9256`. A Prometheus running inside
+another compose project's network lists that project's container names:
 
 ```yaml
 scrape_configs:
