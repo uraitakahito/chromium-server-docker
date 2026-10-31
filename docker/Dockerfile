@@ -3,8 +3,11 @@
 #
 #   base       : shared Chromium server core (chromium, fonts, dbus,
 #                supervisor, socat). Not runnable on its own.
-#   production : headless, CDP on :9222 via socat. Last stage, so an
-#                untargeted `build` yields production (fail-safe default).
+#   exporters  : fetches the two Prometheus exporters (node_exporter,
+#                process-exporter) from GitHub releases and verifies them.
+#   production : headless, CDP on :9222 via socat, Prometheus exporters on
+#                :9100 / :9256. Last stage, so an untargeted `build` yields
+#                production (fail-safe default).
 #
 # The former headful `debug` target (VNC/noVNC) is mothballed under
 # attic/debug/ — the chrome://inspect screencast covers visual verification
@@ -157,7 +160,42 @@ WORKDIR /app
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 
 # ---------------------------------------------------------------------------
-# production — headless, CDP :9222 (DEFAULT: last stage in this file)
+# exporters — Prometheus exporters fetched from GitHub releases
+# ---------------------------------------------------------------------------
+# Two upstream binaries are bundled so the production container can be scraped
+# from inside the container network (the ports are not published to the host):
+#   node_exporter    (:9100)  VM / OS level metrics (cpu, meminfo, load, fs, net)
+#   process-exporter (:9256)  per-process-group metrics, grouped by chromium --type
+#
+# Versions and sha256 live in docker/exporters.sha256 (4 lines: both exporters,
+# amd64 and arm64). Bump the ARG defaults and those 4 lines together. Dependabot
+# does not track GitHub release assets, so this is a manual step — the docs page
+# configuration/metrics has the procedure.
+FROM base AS exporters
+
+ARG NODE_EXPORTER_VERSION=1.12.1
+ARG PROCESS_EXPORTER_VERSION=0.8.7
+
+WORKDIR /tmp/exporters
+COPY docker/exporters.sha256 ./exporters.sha256
+
+# `dpkg --print-architecture` yields amd64 / arm64 — the same spelling the
+# release assets use — without relying on BuildKit's TARGETARCH.
+# `sha256sum -c --ignore-missing` checks only the two tarballs present for this
+# architecture and fails if none of the listed files could be verified.
+RUN set -eu; \
+    arch="$(dpkg --print-architecture)"; \
+    ne="node_exporter-${NODE_EXPORTER_VERSION}.linux-${arch}"; \
+    pe="process-exporter-${PROCESS_EXPORTER_VERSION}.linux-${arch}"; \
+    curl -fsSL --retry 3 -o "${ne}.tar.gz" "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/${ne}.tar.gz"; \
+    curl -fsSL --retry 3 -o "${pe}.tar.gz" "https://github.com/ncabatoff/process-exporter/releases/download/v${PROCESS_EXPORTER_VERSION}/${pe}.tar.gz"; \
+    sha256sum -c --ignore-missing exporters.sha256; \
+    tar -xzf "${ne}.tar.gz" --strip-components=1 "${ne}/node_exporter"; \
+    tar -xzf "${pe}.tar.gz" --strip-components=1 "${pe}/process-exporter"
+
+# ---------------------------------------------------------------------------
+# production — headless, CDP :9222 + Prometheus exporters :9100 / :9256
+#              (DEFAULT: last stage in this file)
 # ---------------------------------------------------------------------------
 FROM base AS production
 
@@ -168,6 +206,17 @@ FROM base AS production
 #   - If the source file has 600 permissions, supervisord cannot read it
 COPY --chmod=644 supervisord-headless.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=644 chromium-headless.conf /app/chromium-headless.conf
+
+# Prometheus exporters (docs: configuration/metrics). The binaries come from the
+# `exporters` stage above; the process-exporter group definitions live in the
+# repo root next to the Chromium flag file.
+COPY --from=exporters --chmod=755 /tmp/exporters/node_exporter /tmp/exporters/process-exporter /usr/local/bin/
+COPY --chmod=644 process-exporter.yml /app/process-exporter.yml
+
+# Documentation only — compose decides what gets published. 9222 is CDP (via
+# socat); 9100 (node_exporter) and 9256 (process-exporter) are meant to be
+# scraped from inside the container network and stay unpublished on the host.
+EXPOSE 9222 9100 9256
 
 # Health check for CDP availability.
 # Honored by Docker-compatible runtimes (e.g. the CI smoke job); Apple

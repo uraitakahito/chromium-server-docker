@@ -55,6 +55,11 @@ export default defineConfig({
               translations: { ja: "Chrome DevTools Protocol" },
               slug: "configuration/cdp",
             },
+            {
+              label: "Metrics",
+              translations: { ja: "メトリクス" },
+              slug: "configuration/metrics",
+            },
           ],
         },
         {

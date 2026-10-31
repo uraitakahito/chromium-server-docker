@@ -19,14 +19,14 @@ runtime (CI uses Docker).
 
 ## Documentation
 
-Full documentation (build, run, Chromium flags, CDP, and internals) lives on the
-docs site:
+Full documentation (build, run, Chromium flags, CDP, metrics, and internals)
+lives on the docs site:
 
 - **English** — <https://uraitakahito.github.io/chromium-server-docker/>
 - **日本語** — <https://uraitakahito.github.io/chromium-server-docker/ja/>
 
 The site is built from [`docs-site/`](docs-site/) (Astro + Starlight) and
-published to GitHub Pages on every push to `main`.
+published to GitHub Pages on every release tag (`v*`).
 
 To edit or preview the docs locally:
 

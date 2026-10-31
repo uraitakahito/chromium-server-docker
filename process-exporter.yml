@@ -1,0 +1,25 @@
+# process-exporter group definitions (Production · Headless)
+#
+# The first matching rule wins, so the `--type=` rule comes before the catch
+# for the parent browser process. Only the processes that live in this
+# container on purpose are counted: chromium (by --type), its crashpad handler,
+# supervisord and socat. There is deliberately NO catch-all rule: with
+# `{{.Comm}}` + `.+`, every transient `sh` / `curl` spawned during a scrape
+# becomes its own group (measured: 1,005 series instead of ~100).
+#
+# Metrics come out as namedprocess_namegroup_*{groupname="..."}. Docs:
+#   https://uraitakahito.github.io/chromium-server-docker/configuration/metrics/
+process_names:
+  # renderer / gpu-process / utility / zygote ... — whatever Chromium passes.
+  - name: "chromium-{{.Matches.type}}"
+    cmdline: ["^/usr/lib/chromium/chromium .*--type=(?P<type>[a-z-]+)"]
+  # The parent browser process has no --type. dbus-run-session and
+  # start-chromium.sh carry "chromium" in their argv too, but their argv[0]
+  # differs, so the anchored regex leaves them out.
+  - name: "chromium-browser"
+    cmdline: ["^/usr/lib/chromium/chromium( |$)"]
+  # /proc/<pid>/comm is truncated to 15 characters.
+  - name: "chrome_crashpad"
+    comm: ["chrome_crashpad"]
+  - name: "{{.Comm}}"
+    comm: ["supervisord", "socat"]

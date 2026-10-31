@@ -8,6 +8,7 @@ on:
       - 'chromium-*.conf'
       - 'supervisord-*.conf'
       - 'start-*.sh'
+      - 'process-exporter.yml'
       - '.github/workflows/docker-build.yml'
 
 permissions:
@@ -65,7 +66,7 @@ jobs:
 
       - name: Start container
         run: |
-          docker run -d --rm --init --name smoke -p 9222:9222 chromium-server-docker:smoke
+          docker run -d --rm --init --name smoke -p 9222:9222 -p 9100:9100 -p 9256:9256 chromium-server-docker:smoke
 
       - name: Wait for CDP and verify response
         run: |
@@ -79,6 +80,15 @@ jobs:
           done
           echo "CDP did not respond within 30s" >&2
           exit 1
+      # The bundled exporters answer on their own ports. chromium-browser is
+      # exactly 1 (the parent process); renderers come and go, so only their
+      # presence is checked.
+      - name: Verify the bundled exporters
+        run: |
+          curl -sf http://localhost:9100/metrics | grep -q '^node_memory_MemTotal_bytes '
+          curl -sf http://localhost:9256/metrics | grep -q '^namedprocess_namegroup_num_procs{groupname="chromium-browser"} 1$'
+          curl -sf http://localhost:9256/metrics | grep -q '^namedprocess_namegroup_num_procs{groupname="chromium-renderer"} '
+          echo "exporters answer: node_exporter on :9100, process-exporter on :9256 (browser=1, renderer present)"
 
       - name: Capture logs on failure
         if: failure()
@@ -86,6 +96,8 @@ jobs:
           docker logs smoke || true
           docker exec smoke cat /tmp/chromium-stderr.log 2>/dev/null || true
           docker exec smoke cat /tmp/socat-stderr.log 2>/dev/null || true
+          docker exec smoke cat /tmp/node-exporter-stderr.log 2>/dev/null || true
+          docker exec smoke cat /tmp/process-exporter-stderr.log 2>/dev/null || true
 
       - name: Stop container
         if: always()
