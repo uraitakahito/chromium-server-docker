@@ -5,12 +5,13 @@
 //   2. every Prometheus scrape target is `up` (the DNS names inside the stack resolve)
 //   3. inside the chromium container, process-exporter counts exactly one parent chromium
 //
-// Node 22+ built-ins only (fetch, child_process). `--wait` retries for up to 60 s,
-// which bin/stack.sh up uses because container-compose returns before anything answers.
+// Node 22+ built-ins only (fetch, child_process). `--wait` retries for up to 120 s,
+// which bin/stack.sh up uses because container-compose returns before anything answers
+// and the <service>.chromium-server names can take about a minute to resolve after start.
 import { execFileSync } from "node:child_process";
 
 const WAIT = process.argv.includes("--wait");
-const ATTEMPTS = WAIT ? 60 : 1;
+const ATTEMPTS = WAIT ? 120 : 1;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PROMETHEUS = "http://127.0.0.1:9090";
@@ -118,7 +119,7 @@ for (const [mark, name, where] of result.rows) console.log(`   ${mark} ${name.pa
 if (result.problems.length > 0) {
   console.error("");
   for (const problem of result.problems) console.error(`   ${problem}`);
-  console.error(WAIT ? "\nStill failing after 60 s. Start with: ./bin/stack.sh up" : "\nJust started? Retry with: ./bin/stack.sh check --wait");
+  console.error(WAIT ? `\nStill failing after ${String(ATTEMPTS)} s. Start with: ./bin/stack.sh up` : "\nJust started? Retry with: ./bin/stack.sh check --wait");
   process.exit(1);
 }
 console.log("\nGrafana: http://127.0.0.1:3000/d/chromium   Prometheus: http://127.0.0.1:9090/targets");

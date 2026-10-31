@@ -45,7 +45,8 @@ sudo container system dns create chromium-server
 ./bin/stack.sh down     # コンテナを止める（消すのは `container rm`）
 ```
 
-`check` は 3 層を見る: publish した 3 つの口（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up`、
+`check` は 3 層を見る（`--wait` は 120 秒まで繰り返す。`<service>.chromium-server` の名前は起動から 1 分ほど
+引けないことがある）: publish した 3 つの口（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up`、
 worker の中の process-exporter が親の `chromium` を 1 本と数える。落ちた行を名指しして
 非 0 で終わる。
 
@@ -82,10 +83,11 @@ Grafana は 30 秒以内に file を拾う。
 
 ## なぜこの形か
 
-- **Prometheus と Grafana の `user: "0"`。** Apple Container では named volume が root 所有
-  （実測）。Grafana（uid 472）は `mkdir /var/lib/grafana/plugins: Permission denied` で止まり、
-  Prometheus（nobody）は立たない。host の loopback にしか出ない開発の道具なので、VM の中で
-  root で動かすのが現実的な直し方。
+- **data の volume は無い。** Prometheus と Grafana はコンテナ自身の filesystem に書く。data は
+  `container stop`／`start` では残り、スタックを作り直す（`up`）かコンテナを消すと消える。開発の
+  動作確認用なので、それより長く残す物は無い。image の既定の user（nobody・grafana）のまま動く
+  利点もある —— Apple Container では named volume が root 所有になり（実測: Grafana が
+  `mkdir /var/lib/grafana/plugins: Permission denied` で止まった）、`user: "0"` が要った。
 - **Prometheus の URL は provisioning の file に書く。`environment:` には書かない。**
   container-compose は service 名と同じ値の環境変数をその service の IP に黙って書き換えることがある。
 - **`build.target` は無視される**（container-compose）。Dockerfile の最後の段が `production` なので

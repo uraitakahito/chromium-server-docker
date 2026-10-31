@@ -11,11 +11,13 @@
 # container-compose は各コンテナの中の /etc/hosts を書く方式に落ち、非 root の image では
 # 黙って失敗する。container_name: は書かない —— この DNS の命名が抑止される。
 #
-# Apple Container では named volume が root 所有（2026-10-31 に実測）: Grafana（uid 472）は
-# 「mkdir /var/lib/grafana/plugins: Permission denied」で死に、Prometheus（nobody）は
-# 立たない。そのため両方 user "0" で動かす。このスタックは開発の道具で、host の loopback
-# （3000・9090・9222）にしか listen しない。exporter の口 9100 / 9256 は publish せず、
-# Prometheus がコンテナ network の中で scrape する。
+# Prometheus と Grafana の data は volume に置かず、コンテナ自身の rootfs に書く。
+# このスタックは開発の動作確認用で、data は消えてよい。rootfs は container stop → start
+# では残り、作り直し（container-compose up -d）と container rm で消える（2026-10-31 に実測）。
+# image の既定の user（nobody・grafana）が自分の data dir を持っているので、user: も要らない
+# —— named volume を使うと mount point が root 所有になり、user: "0" が要った。
+# host の loopback（3000・9090・9222）にしか listen しない。exporter の口 9100 / 9256 は
+# publish せず、Prometheus がコンテナ network の中で scrape する。
 #
 # 同時に起こすのは 1 つだけ。利用者のスタック（capture-ledger・browserhive）は自分の
 # chromium を同じ loopback の口に publish する。このスタックをそれらと並べて起こさない。
@@ -41,16 +43,12 @@ services:
 
   prometheus:
     image: docker.io/prom/prometheus:v3.15.1
-    user: "0"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=15d
       - --web.enable-lifecycle        # bin/stack.sh reload → POST /-/reload
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
-      - prometheus-data:/prometheus
     ports:
       - "127.0.0.1:9090:9090"
     mem_limit: 1gb
@@ -60,17 +58,13 @@ services:
 
   grafana:
     image: docker.io/grafana/grafana:13.2.5
-    user: "0"
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
       GF_USERS_DEFAULT_THEME: "system"
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      # dashboard は /var/lib/grafana の外に mount する。data の volume の mount point の
-      # 下に置かないため。
-      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro   # provider の path（provisioning/dashboards/chromium.yml）
     ports:
       - "127.0.0.1:3000:3000"
     mem_limit: 1gb
@@ -84,7 +78,3 @@ services:
     volumes:
       - ./monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     mem_limit: 256mb
-
-volumes:
-  prometheus-data:
-  grafana-data:
