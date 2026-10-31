@@ -1,28 +1,48 @@
 # chromium-server-docker の開発スタック（Apple Container ＋ container-compose）。
+# chromium の worker 1 台と、それを測る Prometheus・Grafana・blackbox を並べる。
 #
-# 起こすのは bin/stack.sh（up | down | check | reload）。生の `container-compose` は
-# 打たない —— script が preflight（道具・DNS ドメイン）を走らせ、スタックが答えるまで
-# 待つ。container-compose 自身はどちらもしない。
+# ── 起動 ────────────────────────────────────────────────────────────────
+# リポジトリの root で打つ。生の `container-compose` は打たない —— bin/stack.sh が
+# preflight（道具・DNS ドメイン・9222 の持ち主）を走らせ、スタックが答えるまで待つ。
+# container-compose 自身はどちらもしない。
 #
-# マシンごとに 1 回（sudo が要る）:
-#   sudo container system dns create chromium-server
-# 下の project 名がそのまま DNS ドメイン。ドメインが在れば、どの service も
-# <service>.chromium-server の名前でほかのコンテナから（host からも）引ける。無いと
-# container-compose は各コンテナの中の /etc/hosts を書く方式に落ち、非 root の image では
-# 黙って失敗する。container_name: は書かない —— この DNS の命名が抑止される。
+#   sudo container system dns create chromium-server   # マシンごとに 1 回だけ（sudo が要る）
+#   ./bin/stack.sh up       # build → 起動 → 全部が答えるまで待つ（最大 2 分ほど）
+#   ./bin/stack.sh check    # 答えているかをもう一度確かめる（--wait を付けると待つ）
+#   ./bin/stack.sh reload   # Prometheus に prometheus.yml と rules を読み直させる
+#   ./bin/stack.sh down     # 止める（次の up で作り直す）
+#
+# 起こす前に、同じ口を使うほかのスタックを止めておく（capture-ledger は pnpm run dev:down、
+# browserhive は pnpm run stack:down）。
+#
+# ── アクセス ──────────────────────────────────────────────────────────
+# Mac のブラウザから開く。どれも host の loopback（127.0.0.1）にだけ出している。
+#
+#   Grafana     http://127.0.0.1:3000/d/chromium     dashboard「chromium-server」。login は要らない
+#                                                    （anonymous の Viewer。見るだけで編集はできない）
+#   Prometheus  http://127.0.0.1:9090/targets        scrape の対象。alert は /alerts
+#   CDP         http://127.0.0.1:9222/json/version   ./bin/cdp.sh がここを使う
+#
+# Grafana と Prometheus の data は ./bin/stack.sh up のたびに空から始まる（下の注記）。
+# dashboard と datasource は monitoring/grafana/ の file から読むので、毎回同じ物が出る。
+#
+# ── 注記 ────────────────────────────────────────────────────────────────
+# 下の project 名がそのまま DNS ドメイン（起動の 1 行目で作るもの）。ドメインが在れば、
+# どの service も <service>.chromium-server の名前でほかのコンテナから（host からも）
+# 引ける。無いと container-compose は各コンテナの中の /etc/hosts を書く方式に落ち、
+# 非 root の image では黙って失敗する。container_name: は書かない —— この DNS の命名が
+# 抑止される。
 #
 # Prometheus と Grafana の data は volume に置かず、コンテナ自身の rootfs に書く。
 # このスタックは開発の動作確認用で、data は消えてよい。rootfs は container stop → start
 # では残り、作り直し（container-compose up -d）と container rm で消える（2026-10-31 に実測）。
 # image の既定の user（nobody・grafana）が自分の data dir を持っているので、user: も要らない
 # —— named volume を使うと mount point が root 所有になり、user: "0" が要った。
-# host の loopback（3000・9090・9222）にしか listen しない。exporter の口 9100 / 9256 は
-# publish せず、Prometheus がコンテナ network の中で scrape する。
+# exporter の口 9100 / 9256 は publish せず、Prometheus がコンテナ network の中で scrape する。
 #
 # 同時に起こすのは 1 つだけ。利用者のスタック（capture-ledger・browserhive）は自分の
-# chromium を同じ loopback の口に publish する。このスタックをそれらと並べて起こさない。
-# 先に他方を止める —— bin/stack.sh up は 127.0.0.1:9222 を自分以外が持っている間、
-# 起動を断る。
+# chromium を同じ loopback の口に publish する。このスタックをそれらと並べて起こさない
+# —— bin/stack.sh up は 127.0.0.1:9222 を自分以外が持っている間、起動を断る。
 #
 # Grafana に渡す Prometheus の URL は provisioning の FILE に書く。environment: には
 # 書かない —— container-compose は service 名と同じ環境変数の値を、その service の IP に
@@ -56,6 +76,10 @@ services:
       - chromium
       - blackbox
 
+  # ブラウザで http://127.0.0.1:3000/d/chromium を開く（login 不要・anonymous の Viewer）。
+  # datasource は monitoring/grafana/provisioning/、dashboard は
+  # monitoring/grafana/dashboards/chromium.json から読む（30 秒ごとに読み直す）。UI では保存
+  # できないので、dashboard を変えるときは UI で直して JSON を export し、commit する。
   grafana:
     image: docker.io/grafana/grafana:13.2.5
     environment:
