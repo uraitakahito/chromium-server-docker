@@ -38,6 +38,11 @@ export default defineConfig({
               translations: { ja: "worker の動作確認" },
               slug: "getting-started/verify",
             },
+            {
+              label: "Monitoring stack",
+              translations: { ja: "監視スタック" },
+              slug: "getting-started/monitoring",
+            },
           ],
         },
         {

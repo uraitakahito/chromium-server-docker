@@ -13,14 +13,15 @@
 #   ./bin/cdp.sh shot <file.png> # save a screenshot of the page
 #   ./bin/cdp.sh targets         # list open tabs (url + title)
 #
-# Worker selection: $CDP_TARGET (worker name), else the first of
-# chromium-debug, chromium-1, chromium-*. Exits non-zero on any failure,
-# so it can back automated smoke checks as-is.
+# Worker selection: $CDP_TARGET (worker name), else the compose stack's
+# worker (chromium.chromium-server, reached through the port published on
+# 127.0.0.1:29222), else the first of chromium-1, chromium-*. Exits non-zero on
+# any failure, so it can back automated smoke checks as-is.
 #
 set -euo pipefail
 CMD="${1:-help}"; shift || true
 
-# --- resolve worker name: CDP_TARGET -> chromium-1 -> first chromium-* ---
+# --- resolve worker name: CDP_TARGET -> chromium.chromium-server -> chromium-1 -> first chromium-* ---
 # (a revived attic/debug worker named chromium-debug is still matched by
 # the chromium-* fallback)
 NAME="${CDP_TARGET:-}"
@@ -28,19 +29,27 @@ if [ -z "$NAME" ]; then
     NAME=$(container ls --format json | python3 -c '
 import json, sys
 ids = [c.get("configuration", {}).get("id", "") for c in json.load(sys.stdin)]
-if "chromium-1" in ids:
+if "chromium.chromium-server" in ids:
+    print("chromium.chromium-server")
+elif "chromium-1" in ids:
     print("chromium-1")
 else:
     workers = [i for i in ids if i.startswith("chromium-")]
     print(workers[0] if workers else "")')
 fi
 if [ -z "$NAME" ]; then
-    echo "error: no chromium-* worker running (start one: ./bin/dev.sh or ./bin/prod.sh)" >&2
+    echo "error: no chromium worker running (start the stack: ./bin/stack.sh up)" >&2
     exit 1
 fi
 
-# --- resolve worker IP ---
-if ! IP=$(container inspect "$NAME" 2>/dev/null | python3 -c 'import json, sys
+# --- resolve the address ---
+# The compose stack publishes CDP on the host's loopback (127.0.0.1:29222);
+# everything else is reached on the container's own IP, port 9222.
+PORT=9222
+if [ "$NAME" = "chromium.chromium-server" ]; then
+    IP=127.0.0.1
+    PORT=29222
+elif ! IP=$(container inspect "$NAME" 2>/dev/null | python3 -c 'import json, sys
 d = json.load(sys.stdin); d = d[0] if isinstance(d, list) else d
 print(d["status"]["networks"][0]["ipv4Address"].split("/")[0])' 2>/dev/null) || [ -z "$IP" ]; then
     echo "error: worker \"${NAME}\" not found or not running (check: container ls)" >&2
@@ -51,8 +60,8 @@ fi
 # The embedded JS must not contain single quotes (it is single-quoted here).
 # shellcheck disable=SC2016  # ${...} below are JS template literals, not shell
 NAME="$NAME" exec node --input-type=module -e '
-const [ip, cmd, ...args] = process.argv.slice(1);
-const base = `http://${ip}:9222`;
+const [ip, port, cmd, ...args] = process.argv.slice(1);
+const base = `http://${ip}:${port}`;
 const j = async (p, o) => (await fetch(base + p, o)).json();
 
 const usage = "usage: cdp.sh smoke [url] | goto URL | title | eval EXPR | shot FILE.png | targets";
@@ -141,4 +150,4 @@ try {
   console.error("error:", e.message);
   process.exit(1);
 }
-' -- "$IP" "$CMD" "$@"
+' -- "$IP" "$PORT" "$CMD" "$@"

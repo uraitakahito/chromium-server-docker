@@ -1,0 +1,16 @@
+# blackbox_exporter modules for the chromium-server stack.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      # The DNS domain publishes AAAA records but there is no IPv6 route
+      # between the VMs — force IPv4.
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
+      # Chromium's DevTools HTTP endpoint refuses a Host header that is not an
+      # IP literal or "localhost" (500 "Host header is specified and is not an
+      # IP address or localhost", DNS-rebinding protection). The probe therefore
+      # connects to chromium.chromium-server but presents Host: localhost.
+      headers:
+        Host: localhost

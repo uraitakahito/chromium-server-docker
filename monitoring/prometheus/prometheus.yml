@@ -1,0 +1,38 @@
+# Prometheus for the chromium-server development stack (docker-compose.yml).
+# Targets are the <service>.chromium-server names of this compose project.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # VM / OS level metrics of the chromium container (node_exporter, 6 collectors).
+  - job_name: chromium-node
+    static_configs:
+      - targets: ["chromium.chromium-server:9100"]
+
+  # Per-process-group metrics (process-exporter, grouped by chromium --type).
+  - job_name: chromium-process
+    static_configs:
+      - targets: ["chromium.chromium-server:9256"]
+
+  # CDP liveness through blackbox: GET /json/version must answer 2xx.
+  - job_name: chromium-cdp
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://chromium.chromium-server:9222/json/version"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox.chromium-server:9115
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

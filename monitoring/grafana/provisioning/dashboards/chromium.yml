@@ -1,0 +1,11 @@
+# Dashboards are provisioned from files; the repository is the source of
+# truth. Edit in the UI, export the JSON, commit it.
+apiVersion: 1
+providers:
+  - name: chromium-server
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

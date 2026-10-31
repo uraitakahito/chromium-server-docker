@@ -1,0 +1,91 @@
+# chromium-server-docker development stack on Apple Container (container-compose).
+#
+# Start it with bin/stack.sh (up | down | check | reload) — never with a raw
+# `container-compose` call: the script runs the preflight (tools, DNS domain)
+# and waits for the stack to answer, which container-compose itself does not.
+#
+# One-time per machine (needs sudo):
+#   sudo container system dns create chromium-server
+# The project name below is the DNS domain. With the domain present every
+# service is reachable as <service>.chromium-server from the other containers
+# (and from the host); without it container-compose falls back to writing
+# /etc/hosts inside each container, which fails silently for non-root images.
+# Never add container_name: — it suppresses that DNS naming.
+#
+# Named volumes are root-owned on Apple Container (measured 2026-10-31):
+# Grafana (uid 472) dies with "mkdir /var/lib/grafana/plugins: Permission
+# denied" and Prometheus (nobody) never comes up. Both therefore run as
+# user "0". This stack is a development tool and only listens on the host's
+# loopback (3000, 9090, 29222); the exporter ports 9100 / 9256 are not
+# published at all — Prometheus scrapes them inside the container network.
+#
+# Prometheus' URL for Grafana lives in a provisioning FILE, not in
+# environment: — container-compose may rewrite an environment value that
+# equals a service name into that service's IP, silently.
+name: chromium-server
+
+services:
+  # The image this repository builds. target: is ignored by container-compose
+  # (it always builds the last stage), which is production anyway.
+  chromium:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: production
+    mem_limit: 4gb
+    ports:
+      # CDP via socat, for bin/cdp.sh. Host port 29222, not 9222: the consumers'
+      # stacks on the same machine publish their own chromium on 127.0.0.1:9222
+      # (capture-ledger) and 19222 (browserhive e2e), and this stack must be
+      # able to run next to them. 9100 / 9256 stay unpublished.
+      - "127.0.0.1:29222:9222"
+
+  prometheus:
+    image: docker.io/prom/prometheus:v3.15.1
+    user: "0"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle        # bin/stack.sh reload → POST /-/reload
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    mem_limit: 1gb
+    depends_on:
+      - chromium
+      - blackbox
+
+  grafana:
+    image: docker.io/grafana/grafana:13.2.5
+    user: "0"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_USERS_DEFAULT_THEME: "system"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      # Dashboards are mounted outside /var/lib/grafana so they do not sit
+      # under the data volume's mount point.
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 1gb
+    depends_on:
+      - prometheus
+
+  # Probes CDP (/json/version) for Prometheus. Apple Container does not
+  # evaluate the Dockerfile's HEALTHCHECK, so this is the liveness signal.
+  blackbox:
+    image: docker.io/prom/blackbox-exporter:v0.29.1
+    volumes:
+      - ./monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    mem_limit: 256mb
+
+volumes:
+  prometheus-data:
+  grafana-data:

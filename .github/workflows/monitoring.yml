@@ -1,0 +1,53 @@
+name: monitoring
+
+# The development stack (docker-compose.yml + monitoring/) runs on Apple
+# Container, which GitHub's runners do not have. CI therefore checks the
+# configuration files themselves: Prometheus config and rules with promtool,
+# the blackbox config with its own --config.check, the dashboard JSON shape,
+# and the compose file's syntax. Whether the stack actually comes up is
+# verified locally (docs: getting-started/monitoring).
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker-compose.yml'
+      - 'monitoring/**'
+      - 'bin/**'
+      - '.github/workflows/monitoring.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  config:
+    name: Validate monitoring config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Same image versions as docker-compose.yml, so promtool matches the
+      # Prometheus that will read these files. Mount at /etc/prometheus so the
+      # rule_files glob in prometheus.yml resolves exactly as at runtime.
+      - name: promtool check config
+        run: |
+          docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool docker.io/prom/prometheus:v3.15.1 \
+            check config /etc/prometheus/prometheus.yml
+      - name: promtool check rules
+        run: |
+          docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool docker.io/prom/prometheus:v3.15.1 \
+            check rules /etc/prometheus/rules/chromium.yml
+      - name: blackbox config check
+        run: |
+          docker run --rm -v "$PWD/monitoring/blackbox:/etc/blackbox_exporter:ro" \
+            docker.io/prom/blackbox-exporter:v0.29.1 \
+            --config.check --config.file=/etc/blackbox_exporter/blackbox.yml
+      - name: Dashboard JSON shape
+        run: |
+          jq -e '.uid == "chromium" and .id == null and (.panels | length) > 0' monitoring/grafana/dashboards/chromium.json
+      # Syntax only: Docker Compose and container-compose agree on the file
+      # format but not on semantics (build.target, named-volume ownership),
+      # so a green step here is not a substitute for bin/stack.sh up.
+      - name: Compose file syntax
+        run: docker compose -f docker-compose.yml config --quiet
