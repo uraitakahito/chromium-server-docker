@@ -27,6 +27,15 @@ case "${1:-}" in
       echo "  sudo container system dns create $DOMAIN" >&2
       exit 1
     fi
+    # One stack at a time: the consumers' stacks publish their own chromium on
+    # 127.0.0.1:9222. If that port is taken and it is not our own worker, the
+    # other stack is still running — stop it first instead of starting next to it.
+    if ! container ls 2>/dev/null | awk 'NR > 1 { print $1 }' | grep -qx "chromium.$DOMAIN" \
+       && nc -z -G 2 127.0.0.1 9222 2>/dev/null; then
+      echo "error: 127.0.0.1:9222 is already in use by another stack (capture-ledger? browserhive?)." >&2
+      echo "  Stop it first (pnpm run dev:down / pnpm run stack:down), then retry. One stack at a time." >&2
+      exit 1
+    fi
     container-compose up -d -b
     exec node bin/check-stack.mjs --wait
     ;;
