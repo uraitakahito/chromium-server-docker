@@ -1,6 +1,8 @@
-# Alert rules for one chromium-server worker. Evaluated by Prometheus; there is
-# no Alertmanager in this stack — the firing state is visible on
-# http://127.0.0.1:9090/alerts and in Grafana's Alerting view.
+# Alert rules for the chromium containers, one evaluation per container (no rule
+# aggregates across `instance`, so a stack with several containers gets one alert
+# per container). Evaluated by Prometheus; there is no Alertmanager in this
+# stack — the firing state is visible on http://127.0.0.1:9090/alerts and in
+# Grafana's Alerting view.
 groups:
   - name: chromium
     rules:
@@ -10,7 +12,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "CDP (/json/version) has not answered for 1 minute"
+          summary: "{{ $labels.instance }}: CDP (/json/version) has not answered for 1 minute"
 
       - alert: ChromiumBrowserMissing
         expr: namedprocess_namegroup_num_procs{groupname="chromium-browser"} != 1
@@ -18,7 +20,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "expected exactly one parent chromium process, found {{ $value }}"
+          summary: "{{ $labels.instance }}: expected exactly one parent chromium process, found {{ $value }}"
 
       - alert: ChromiumExporterDown
         expr: up{job=~"chromium-(node|process)"} == 0
@@ -26,7 +28,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "{{ $labels.job }} is not answering"
+          summary: "{{ $labels.instance }}: {{ $labels.job }} is not answering"
 
       - alert: ChromiumRendererMemoryHigh
         expr: namedprocess_namegroup_memory_bytes{groupname="chromium-renderer",memtype="resident"} > 1.5e9
@@ -34,7 +36,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "renderer RSS above 1.5 GB for 5 minutes"
+          summary: "{{ $labels.instance }}: renderer RSS above 1.5 GB for 5 minutes"
 
       - alert: ChromiumVmMemoryLow
         expr: node_memory_MemAvailable_bytes{job="chromium-node"} < 512e6
@@ -42,4 +44,4 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "less than 512 MB of memory available in the chromium VM"
+          summary: "{{ $labels.instance }}: less than 512 MB of memory available in the chromium VM"

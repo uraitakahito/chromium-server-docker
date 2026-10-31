@@ -57,9 +57,14 @@ namedprocess_namegroup_open_filedesc{groupname="chromium-browser"}
 scrape_configs:
   - job_name: chromium-node
     static_configs: [{ targets: ["chromium-1.capture-ledger:9100", "chromium-2.capture-ledger:9100"] }]
+    relabel_configs: [{ source_labels: [__address__], regex: "([^:]+)(?::[0-9]+)?", target_label: instance }]
   - job_name: chromium-process
     static_configs: [{ targets: ["chromium-1.capture-ledger:9256", "chromium-2.capture-ledger:9256"] }]
+    relabel_configs: [{ source_labels: [__address__], regex: "([^:]+)(?::[0-9]+)?", target_label: instance }]
 ```
+
+relabel は `instance` を口を外したコンテナの名前にする。[監視スタック](/ja/getting-started/monitoring/)
+の dashboard と rule はこの形を前提にしている。
 
 ## 確認
 

@@ -45,9 +45,10 @@ jobs:
             --config.check --config.file=/etc/blackbox_exporter/blackbox.yml
       - name: Dashboard JSON shape
         run: |
-          jq -e '.uid == "chromium" and .id == null and (.panels | length) > 0' monitoring/grafana/dashboards/chromium.json
+          jq -e '.uid == "chromium" and .id == null and (.panels | length) > 0 and (.templating.list | map(.name) | index("instance")) != null' monitoring/grafana/dashboards/chromium.json
       # Syntax only: Docker Compose and container-compose agree on the file
-      # format but not on semantics (build.target, named-volume ownership),
-      # so a green step here is not a substitute for bin/stack.sh up.
+      # format but not on semantics (build.target, environment values that
+      # equal a service name), so a green step here is not a substitute for
+      # bin/stack.sh up.
       - name: Compose file syntax
         run: docker compose -f docker-compose.yml config --quiet

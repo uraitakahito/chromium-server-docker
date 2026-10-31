@@ -32,7 +32,8 @@ sudo container system dns create chromium-server
 
 ## 同時に起こすのは 1 つだけ
 
-利用者の stack（capture-ledger・browserhive）は自分の chromium を同じ loopback の口に publish する。
+利用者の stack も同じ loopback の口を使う。capture-ledger は自分の chromium を `127.0.0.1:9222` に、
+browserhive の profile `monitoring` は自分の Prometheus と Grafana を `127.0.0.1:9090`・`:3000` に publish する。
 この stack をそれらと並べて起こさない。先に他方を止める（そちらで `pnpm run dev:down`／`pnpm run stack:down`）。
 `bin/stack.sh up` は `127.0.0.1:9222` を自分以外が持っている間は起動を断り、持ち主の候補を名指す。
 
@@ -40,13 +41,13 @@ sudo container system dns create chromium-server
 
 ```sh
 ./bin/stack.sh up       # preflight → container-compose up -d -b → 全部が答えるまで待つ
-./bin/stack.sh check    # 同じ確認をもう一度（--wait で 60 秒まで待つ）
+./bin/stack.sh check    # 同じ確認をもう一度（--wait で 120 秒まで待つ）
 ./bin/stack.sh reload   # Prometheus に prometheus.yml と rules を読み直させる
 ./bin/stack.sh down     # コンテナを止める（消すのは `container rm`）
 ```
 
 `check` は 3 層を見る（`--wait` は 120 秒まで繰り返す。`<service>.chromium-server` の名前は起動から 1 分ほど
-引けないことがある）: publish した 3 つの口（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up`、
+引けないことがある）: publish した 3 つの口（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up` で `instance` がコンテナの名前（下を参照）、
 worker の中の process-exporter が親の `chromium` を 1 本と数える。落ちた行を名指しして
 非 0 で終わる。
 
@@ -54,6 +55,9 @@ worker の中の process-exporter が親の `chromium` を 1 本と数える。�
 と Prometheus <http://127.0.0.1:9090/targets> を開く。
 
 ## dashboard に在るもの
+
+上の変数 `instance` で台を選ぶ（ここでは 1 台、下流のスタックでは複数台）。どの式も `job` と `instance` で
+絞り、凡例はコンテナの名前から始まる。
 
 | panel | 式 | 読めること |
 | --- | --- | --- |
@@ -97,8 +101,17 @@ Grafana は 30 秒以内に file を拾う。
   IP か `localhost` でないと `500 Host header is specified and is not an IP address or localhost`
   を返す（DNS rebinding の守り）。DNS 名をそのまま使った probe は、CDP が生きているのに down と言っていた。
 
-## scrape 設定をほかで使う
+## dashboard と rule をほかで使う
 
-worker を複数台持つ stack（browserhive・capture-ledger）は、`monitoring/prometheus/prometheus.yml`
-の `chromium-*` の job 2 つを写し、自分のコンテナ名（例 `chromium-1.browserhive:9100`）を並べればよい。
-その Prometheus をどこに置くかは、その project の判断。
+worker を複数台持つ stack（browserhive・capture-ledger）は、このリポジトリの 3 つを（たいていは git の
+submodule から）使える:
+
+- `monitoring/prometheus/prometheus.yml` の `chromium-node`・`chromium-process`・`chromium-cdp` の job。
+  自分のコンテナ名（例 `chromium-1.browserhive:9100`）を並べる
+- `monitoring/grafana/dashboards/chromium.json` と `monitoring/prometheus/rules/chromium.yml`。1 ファイルずつ
+  bind mount する
+
+どちらも 2 つの決まりで引くので、守る: 上の job の名前と、`instance` = 口を外したコンテナの名前
+（`chromium-1.browserhive`）。`monitoring/prometheus/prometheus.yml` と同じように、`chromium-*` の job ごとに
+relabel する。relabel が無いと、同じコンテナの node と process の series が別の `instance`（`:9100` と
+`:9256`）を持ち、dashboard の変数で台を選べない。その Prometheus をどこに置くかは、その project の判断。

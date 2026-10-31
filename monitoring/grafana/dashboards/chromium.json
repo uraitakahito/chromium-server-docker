@@ -2,7 +2,7 @@
   "id": null,
   "uid": "chromium",
   "title": "chromium-server",
-  "description": "chromium-server-docker の worker 1 台。exporter は image に同梱（node_exporter :9100・process-exporter :9256）、CDP の生死は blackbox。",
+  "description": "chromium-server-docker の Chromium のコンテナ。上の instance で台を選ぶ（下流のスタックでは複数台）。instance は口を外したコンテナの名前。exporter は image に同梱（node_exporter :9100・process-exporter :9256）、CDP の生死は blackbox。",
   "tags": [
     "chromium-server"
   ],
@@ -15,9 +15,39 @@
   },
   "refresh": "30s",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "instance",
+        "label": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(up{job=\"chromium-node\"}, instance)",
+        "query": "label_values(up{job=\"chromium-node\"}, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "hide": 0,
+        "regex": "",
+        "skipUrlSync": false
+      }
+    ]
   },
   "annotations": {
     "list": []
@@ -91,8 +121,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=~\"chromium-.*\"}",
-          "legendFormat": "{{job}}",
+          "expr": "up{job=~\"chromium-.*\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} {{job}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -101,8 +131,8 @@
         },
         {
           "refId": "B",
-          "expr": "probe_success{job=\"chromium-cdp\"}",
-          "legendFormat": "cdp /json/version",
+          "expr": "probe_success{job=\"chromium-cdp\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} cdp",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -153,15 +183,15 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "namedprocess_namegroup_memory_bytes{memtype=\"resident\"}",
-          "legendFormat": "{{groupname}}",
+          "expr": "namedprocess_namegroup_memory_bytes{job=\"chromium-process\", instance=~\"$instance\", memtype=\"resident\"}",
+          "legendFormat": "{{instance}} {{groupname}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           }
         }
       ],
-      "description": "process-exporter。renderer・browser・utility・gpu-process・zygote・crashpad・supervisord・socat。積み上げが VM の memory の使い方。"
+      "description": "process-exporter。renderer・browser・utility・gpu-process・zygote・crashpad・supervisord・socat。台を 1 つ選ぶと、積み上げがその VM の memory の使い方。"
     },
     {
       "id": 3,
@@ -205,15 +235,15 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (groupname) (rate(namedprocess_namegroup_cpu_seconds_total[1m])) * 100",
-          "legendFormat": "{{groupname}}",
+          "expr": "sum by (instance, groupname) (rate(namedprocess_namegroup_cpu_seconds_total{job=\"chromium-process\", instance=~\"$instance\"}[1m])) * 100",
+          "legendFormat": "{{instance}} {{groupname}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           }
         }
       ],
-      "description": "user + system の 1 分の rate。100 = 1 コア。"
+      "description": "user + system の 1 分の rate を台と群ごとに足す。100 = 1 コア。"
     },
     {
       "id": 4,
@@ -257,8 +287,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "namedprocess_namegroup_num_procs",
-          "legendFormat": "{{groupname}}",
+          "expr": "namedprocess_namegroup_num_procs{job=\"chromium-process\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} {{groupname}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -309,8 +339,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "node_memory_MemTotal_bytes{job=\"chromium-node\"} - node_memory_MemAvailable_bytes{job=\"chromium-node\"}",
-          "legendFormat": "used",
+          "expr": "node_memory_MemTotal_bytes{job=\"chromium-node\", instance=~\"$instance\"} - node_memory_MemAvailable_bytes{job=\"chromium-node\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} used",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -318,8 +348,8 @@
         },
         {
           "refId": "B",
-          "expr": "node_memory_MemTotal_bytes{job=\"chromium-node\"}",
-          "legendFormat": "total",
+          "expr": "node_memory_MemTotal_bytes{job=\"chromium-node\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} total",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -370,8 +400,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "namedprocess_namegroup_open_filedesc",
-          "legendFormat": "{{groupname}}",
+          "expr": "namedprocess_namegroup_open_filedesc{job=\"chromium-process\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} {{groupname}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -422,8 +452,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "node_filesystem_avail_bytes{job=\"chromium-node\",mountpoint=\"/\"}",
-          "legendFormat": "avail /",
+          "expr": "node_filesystem_avail_bytes{job=\"chromium-node\", instance=~\"$instance\", mountpoint=\"/\"}",
+          "legendFormat": "{{instance}} avail /",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -474,8 +504,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "node_load1{job=\"chromium-node\"}",
-          "legendFormat": "load1",
+          "expr": "node_load1{job=\"chromium-node\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} load1",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -483,8 +513,8 @@
         },
         {
           "refId": "B",
-          "expr": "node_load5{job=\"chromium-node\"}",
-          "legendFormat": "load5",
+          "expr": "node_load5{job=\"chromium-node\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} load5",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -534,8 +564,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(node_network_receive_bytes_total{job=\"chromium-node\",device=\"eth0\"}[1m])",
-          "legendFormat": "rx",
+          "expr": "rate(node_network_receive_bytes_total{job=\"chromium-node\", instance=~\"$instance\", device=\"eth0\"}[1m])",
+          "legendFormat": "{{instance}} rx",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -543,8 +573,8 @@
         },
         {
           "refId": "B",
-          "expr": "rate(node_network_transmit_bytes_total{job=\"chromium-node\",device=\"eth0\"}[1m])",
-          "legendFormat": "tx",
+          "expr": "rate(node_network_transmit_bytes_total{job=\"chromium-node\", instance=~\"$instance\", device=\"eth0\"}[1m])",
+          "legendFormat": "{{instance}} tx",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
