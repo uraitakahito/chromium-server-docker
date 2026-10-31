@@ -10,6 +10,9 @@ updates:
   # グループの数(docs-site・docs-site-security・docker・actions)で頭打ちになる。
   #
   # 間隔は月 1 回。勧告による更新は schedule にも cooldown にも縛られず、alert が出たときに来る。
+  #
+  # labels は repo に在る物だけを書く。無いラベルを書くと、Dependabot が PR ごとに
+  # 「could not be found」の注意を書き込む(docs・docker・ci で 2026-10-31 に出ていた)。
   - package-ecosystem: npm
     directory: /docs-site
     schedule:
@@ -22,7 +25,6 @@ updates:
     versioning-strategy: increase
     labels:
       - dependencies
-      - docs
     groups:
       # 版の更新は全部 1 本に。satteri(src/plugins/hast-rebase-links.ts)と
       # @astrojs/markdown-satteri(astro.config.ts の processor)のように一緒に使う物が、
@@ -56,7 +58,7 @@ updates:
       default-days: 3
     open-pull-requests-limit: 5
     labels:
-      - docker
+      - dependencies
 
   # --- GitHub Actions (SHA-pinned in workflows) ---
   - package-ecosystem: github-actions
@@ -65,7 +67,7 @@ updates:
       interval: monthly
     open-pull-requests-limit: 5
     labels:
-      - ci
+      - dependencies
     groups:
       actions:
         patterns:
