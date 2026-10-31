@@ -28,7 +28,7 @@ sudo container system dns create chromium-server   # once per machine
 ./bin/stack.sh up                                   # build + start + wait until everything answers
 ```
 
-CDP is published on `127.0.0.1:29222` (host port 9222 is left to the consumers' stacks, which publish their own workers there); `bin/cdp.sh` finds it by itself.
+CDP is published on `127.0.0.1:9222`; `bin/cdp.sh` finds it by itself. Run one stack at a time: stop a consumer's stack (capture-ledger, browserhive) before starting this one, and vice versa.
 
 Manual equivalent, for a worker without the monitoring tools:
 
@@ -57,7 +57,7 @@ HEALTHCHECK** — probe workers externally. The compose stack does this
 continuously (blackbox → Prometheus, alert `ChromiumCdpDown`); by hand:
 
 ```sh
-curl -sf --max-time 5 http://127.0.0.1:29222/json/version >/dev/null && echo OK
+curl -sf --max-time 5 http://127.0.0.1:9222/json/version >/dev/null && echo OK
 ```
 
 `container stop` sends SIGTERM with a **5-second** grace period (Docker

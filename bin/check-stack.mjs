@@ -15,7 +15,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PROMETHEUS = "http://127.0.0.1:9090";
 const GRAFANA = "http://127.0.0.1:3000";
-const CDP = "http://127.0.0.1:29222"; // host port 29222 → container 9222 (see docker-compose.yml)
+const CDP = "http://127.0.0.1:9222";
 const CHROMIUM = "chromium.chromium-server";
 const JOBS = ["chromium-node", "chromium-process", "chromium-cdp", "prometheus"];
 

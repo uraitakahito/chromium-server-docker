@@ -15,7 +15,7 @@
 #
 # Worker selection: $CDP_TARGET (worker name), else the compose stack's
 # worker (chromium.chromium-server, reached through the port published on
-# 127.0.0.1:29222), else the first of chromium-1, chromium-*. Exits non-zero on
+# 127.0.0.1:9222), else the first of chromium-1, chromium-*. Exits non-zero on
 # any failure, so it can back automated smoke checks as-is.
 #
 set -euo pipefail
@@ -43,12 +43,11 @@ if [ -z "$NAME" ]; then
 fi
 
 # --- resolve the address ---
-# The compose stack publishes CDP on the host's loopback (127.0.0.1:29222);
+# The compose stack publishes CDP on the host's loopback (127.0.0.1:9222);
 # everything else is reached on the container's own IP, port 9222.
 PORT=9222
 if [ "$NAME" = "chromium.chromium-server" ]; then
     IP=127.0.0.1
-    PORT=29222
 elif ! IP=$(container inspect "$NAME" 2>/dev/null | python3 -c 'import json, sys
 d = json.load(sys.stdin); d = d[0] if isinstance(d, list) else d
 print(d["status"]["networks"][0]["ipv4Address"].split("/")[0])' 2>/dev/null) || [ -z "$IP" ]; then

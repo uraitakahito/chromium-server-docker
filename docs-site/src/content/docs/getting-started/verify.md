@@ -5,7 +5,7 @@ description: One-shot CDP checks with bin/cdp.sh and live viewing via chrome://i
 
 Every worker exposes the same CDP endpoint on `:9222` of its own IP. The
 compose stack ([Monitoring stack](/getting-started/monitoring/)) also publishes
-it on `127.0.0.1:29222`, and `bin/cdp.sh` uses that by default; for a manually
+it on `127.0.0.1:9222`, and `bin/cdp.sh` uses that by default; for a manually
 started worker get the IP from `container ls`.
 
 :::note
