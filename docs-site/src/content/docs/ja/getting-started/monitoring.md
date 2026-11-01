@@ -68,9 +68,20 @@ worker の中の process-exporter が親の `chromium` を 1 本と数える。�
 | VM の memory | `node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes` | 4 GiB の枠までの距離 |
 | fd・disk・load・network | `namedprocess_namegroup_open_filedesc`・`node_filesystem_avail_bytes`・`node_load1`・`node_network_*` | VM の残り |
 
-dashboard は `monitoring/grafana/dashboards/chromium.json` から provisioning し、UI では
-読み取り専用（`allowUiUpdates: false`）。変えるときは UI で直して JSON を export し commit する。
-Grafana は 30 秒以内に file を拾う。
+dashboard は `monitoring/grafana/dashboards/chromium.json` から provisioning し、UI では読み取り専用（`allowUiUpdates: false`）。
+変えるときは、この file を直して commit する。Grafana は 30 秒以内に file を拾う。
+
+画面で組みたいときは、admin で入る（右上の **Sign in**。user `admin`、password `admin`。login しない閲覧者は直せない）。
+ただし、provisioning した dashboard は画面から保存できない。
+**Save** で出る JSON も、**Export** の既定の JSON も、Grafana の新しい形（`"apiVersion": "dashboard.grafana.app/v2"`）で、この file の形ではない。
+file に戻すには:
+
+1. **Make editable** → **Save** の右の ⌄（**More save options**）→ **Save as copy** で写しを作る。写しは Grafana のコンテナの中にだけ在る。
+2. 写しで panel を組んで **Save** する。
+3. **Export** → **Export as code** → **Advanced options** の **Model** を **Classic** にして、**Copy to clipboard**。
+4. 組んだ panel の object だけを、`chromium.json` の `panels` に写す。
+
+まるごと貼ると、`uid` が写しのものになり、`id` に数が入るので、CI（`monitoring.yml`）の形の検査（`.uid == "chromium" and .id == null`）で落ちる。
 
 ## alert
 
