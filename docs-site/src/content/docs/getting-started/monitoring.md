@@ -79,8 +79,28 @@ legend starts with the container name.
 | open fds, disk, load, network | `namedprocess_namegroup_open_filedesc`, `node_filesystem_avail_bytes`, `node_load1`, `node_network_*` | the rest of the VM |
 
 The dashboard is provisioned from `monitoring/grafana/dashboards/chromium.json`
-and is read-only in the UI (`allowUiUpdates: false`). To change it, edit in the
-UI, export the JSON, commit it; Grafana picks up the file within 30 seconds.
+and is read-only in the UI (`allowUiUpdates: false`). To change it, edit this
+file and commit it; Grafana picks up the file within 30 seconds.
+
+To build a change in the screens, sign in as admin (**Sign in** at the top
+right, user `admin`, password `admin`; a viewer who has not signed in cannot
+edit). A provisioned dashboard cannot be saved from the screens, though, and
+the JSON that **Save** offers, like the default JSON of **Export**, is in
+Grafana's new shape (`"apiVersion": "dashboard.grafana.app/v2"`), not this
+file's. To bring a change back to the file:
+
+1. **Make editable** → the ⌄ to the right of **Save** (**More save options**)
+   → **Save as copy** makes a copy. The copy lives only inside the Grafana
+   container.
+2. Build the panel in the copy and **Save** it.
+3. **Export** → **Export as code** → set **Model** under **Advanced options**
+   to **Classic** → **Copy to clipboard**.
+4. Copy only the object of the panel you built into `panels` of
+   `chromium.json`.
+
+Pasting the whole thing gives the copy's `uid` and a numeric `id`, so the
+shape check in CI (`monitoring.yml`: `.uid == "chromium" and .id == null`)
+fails.
 
 ## Alerts
 
