@@ -41,7 +41,7 @@ updates:
         patterns:
           - "*"
 
-  # --- Docker base images (FROM lines in both Dockerfiles) ---
+  # --- Docker base image (the FROM line of docker/Dockerfile) ---
   - package-ecosystem: docker
     # 実体は docker/Dockerfile 1 本。以前は /docker/production と
     # /docker/development を指していたが **どちらも存在せず**、docker の PR は
@@ -51,8 +51,13 @@ updates:
     # attic/ にも Dockerfile があるが退避場所なので対象にしない
     # (追跡すると使っていないものの更新 PR が毎週来る)。
     directory: /docker
+    # 週 1 回。Debian の base image は 1〜5 週おきに新しい tag が出る(2026 年の bookworm)。
+    # Dependabot が上げるのは FROM の tag と digest だけで、docker/Dockerfile の
+    # CHROMIUM_VERSION と APT_SNAPSHOT は上げない。だからこの PR は、APT_SNAPSHOT が base の
+    # 時点より前になって build が落ちる。同じ枝で `node bin/pin-chromium.mjs --write` を
+    # 走らせて足すと、Chromium も同じ PR で上がる(docs: configuration/chromium-version)。
     schedule:
-      interval: monthly
+      interval: weekly
     # 新しすぎる base image を避ける(docker は default-days のみ対応)
     cooldown:
       default-days: 3

@@ -65,6 +65,11 @@ export default defineConfig({
               translations: { ja: "メトリクス" },
               slug: "configuration/metrics",
             },
+            {
+              label: "Chromium version",
+              translations: { ja: "Chromium の版" },
+              slug: "configuration/chromium-version",
+            },
           ],
         },
         {

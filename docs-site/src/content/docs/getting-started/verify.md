@@ -21,7 +21,7 @@ for **Local Network** permission — allow it for both the connecting app
 ```
 
 ```text
-chromium-1 (192.168.64.x): Chrome/150.0.7871.100
+chromium-1 (192.168.64.x): Chrome/156.0.8078.73
 title: "Yahoo! JAPAN"
 ```
 

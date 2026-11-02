@@ -20,7 +20,7 @@ worker は自分の IP の `:9222` に同じ CDP エンドポイントを公開�
 ```
 
 ```text
-chromium-1 (192.168.64.x): Chrome/150.0.7871.100
+chromium-1 (192.168.64.x): Chrome/156.0.8078.73
 title: "Yahoo! JAPAN"
 ```
 

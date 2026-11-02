@@ -9,44 +9,48 @@ on:
       - 'supervisord-*.conf'
       - 'start-*.sh'
       - 'process-exporter.yml'
+      - 'bin/pin-chromium*.mjs'
       - '.github/workflows/docker-build.yml'
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build ${{ matrix.variant }}
+  # The pure parts of the pin helper (bin/pin-chromium.mjs). The parts that talk to
+  # snapshot.debian.org are exercised by running the helper itself (docs:
+  # configuration/chromium-version).
+  pin-helper:
+    name: Pin helper tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Targets of the single multi-stage docker/Dockerfile. Mothballed
-        # units (attic/development/, attic/debug/) are intentionally NOT
-        # built here — see the README.md in each attic directory.
-        variant: [production]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Build ${{ matrix.variant }} image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          context: .
-          file: docker/Dockerfile
-          target: ${{ matrix.variant }}
-          platforms: linux/amd64
-          push: false
-          load: true
-          tags: chromium-server-docker:${{ matrix.variant }}
-          cache-from: type=gha,scope=${{ matrix.variant }}
-          cache-to: type=gha,scope=${{ matrix.variant }},mode=max
+          node-version: '24'
 
+      - run: node --test 'bin/*.test.mjs'
+
+  # Build the production image and smoke-test it on both architectures it runs on:
+  # arm64 is what Apple Container builds on Apple silicon, amd64 is the usual CI and
+  # server architecture. Both run natively (ubuntu-24.04-arm is free for public
+  # repositories), so no QEMU. Building both also proves that the snapshot at
+  # APT_SNAPSHOT lists CHROMIUM_VERSION for each architecture: the two can differ for
+  # a few hours after a Debian security upload.
+  #
+  # Mothballed units (attic/development/, attic/debug/) are intentionally NOT built
+  # here — see the README.md in each attic directory.
   smoke:
-    name: CDP smoke test (production)
-    needs: build
-    runs-on: ubuntu-latest
+    name: Build and smoke-test production (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -58,11 +62,12 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: production
-          platforms: linux/amd64
+          platforms: linux/${{ matrix.arch }}
           push: false
           load: true
           tags: chromium-server-docker:smoke
-          cache-from: type=gha,scope=production
+          cache-from: type=gha,scope=production-${{ matrix.arch }}
+          cache-to: type=gha,scope=production-${{ matrix.arch }},mode=max
 
       - name: Start container
         run: |
@@ -80,6 +85,25 @@ jobs:
           done
           echo "CDP did not respond within 30s" >&2
           exit 1
+
+      # The pin in docker/Dockerfile is what consumers read (browserhive's stack check
+      # compares its /status against it), so the image must report exactly that
+      # version: the Debian package version inside, and the upstream version over CDP.
+      - name: Verify the Chromium version against the pin
+        run: |
+          pinned="$(sed -n 's/^ARG CHROMIUM_VERSION=\(.*\)$/\1/p' docker/Dockerfile)"
+          installed="$(docker exec smoke dpkg-query -W -f="\${Version}" chromium)"
+          want="Chrome/${pinned%%-*}"
+          got="$(curl -sf http://localhost:9222/json/version | sed -n 's/^ *"Browser": *"\([^"]*\)".*/\1/p')"
+          echo "pinned $pinned, installed $installed; CDP reports $got, expected $want"
+          [ "$installed" = "$pinned" ] || { echo "dpkg reports chromium $installed, but docker/Dockerfile pins $pinned" >&2; exit 1; }
+          [ "$got" = "$want" ] || { echo "CDP reports $got, but docker/Dockerfile pins $want" >&2; exit 1; }
+
+      # For comparing builds: the same pin must give the same package versions on
+      # both architectures and on every rebuild.
+      - name: List the installed packages
+        run: docker exec smoke dpkg-query -W -f="\${Package} \${Version}\n"
+
       # The bundled exporters answer on their own ports. chromium-browser is
       # exactly 1 (the parent process); renderers come and go, so only their
       # presence is checked. Renderers may still be spawning right after CDP
