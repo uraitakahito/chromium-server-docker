@@ -1,6 +1,10 @@
 ignored:
-  # Pinning apt versions on Debian rolling repos provides little safety and
-  # frequently breaks at the next snapshot. The base image is already pinned.
+  # DL3008 wants a version on every apt package. Versions are pinned another
+  # way: apt reads every package from snapshot.debian.org at APT_SNAPSHOT, and
+  # chromium / chromium-common / chromium-sandbox are named at CHROMIUM_VERSION
+  # (docker/Dockerfile, docs: configuration/chromium-version). Naming each of the
+  # other packages too would add a line to change on every bump and pin nothing
+  # more.
   - DL3008
   # `cd && git clone && cd && git checkout` is intentional for pinned-commit
   # external repo cloning; WORKDIR would force layer fragmentation.

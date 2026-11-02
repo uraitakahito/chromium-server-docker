@@ -1,7 +1,8 @@
 // check-stack.mjs — does the development stack (docker-compose.yml) answer?
 //
 // Three layers, in order:
-//   1. the ports published on the host's loopback: Prometheus, Grafana, CDP
+//   1. the ports published on the host's loopback: Prometheus, Grafana, CDP — and
+//      the Chromium behind CDP is the version docker/Dockerfile pins
 //   2. every Prometheus scrape target is `up` (the DNS names inside the stack resolve),
 //      and the chromium-* jobs carry instance = the container name without the port
 //      (the dashboard's $instance variable and the rule summaries rely on it)
@@ -11,6 +12,9 @@
 // which bin/stack.sh up uses because container-compose returns before anything answers
 // and the <service>.chromium-server names can take about a minute to resolve after start.
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+import { readPin, upstreamOf } from "./pin-chromium.mjs";
 
 const WAIT = process.argv.includes("--wait");
 const ATTEMPTS = WAIT ? 120 : 1;
@@ -21,6 +25,8 @@ const GRAFANA = "http://127.0.0.1:3000";
 const CDP = "http://127.0.0.1:9222";
 const CHROMIUM = "chromium.chromium-server";
 const JOBS = ["chromium-node", "chromium-process", "chromium-cdp", "prometheus"];
+/** What /json/version must report: the upstream part of ARG CHROMIUM_VERSION. */
+const PINNED = `Chrome/${upstreamOf(readPin(readFileSync(new URL("../docker/Dockerfile", import.meta.url), "utf8")).version)}`;
 
 const get = async (url, timeoutMs = 3000) => {
   const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
@@ -48,6 +54,21 @@ const inspect = async () => {
     if (body.database !== "ok") throw new Error(`database=${String(body.database)}`);
   });
   await port("chromium (CDP)", `${CDP}/json/version`);
+  // A container from an image built before the current pin answers just as well,
+  // so ask which Chromium it runs.
+  if (!problems.some((p) => p.startsWith("chromium (CDP)"))) {
+    try {
+      const { Browser } = await (await get(`${CDP}/json/version`)).json();
+      if (Browser === PINNED) {
+        rows.push(["✓", "chromium version", `${Browser} (pinned in docker/Dockerfile)`]);
+      } else {
+        rows.push(["✗", "chromium version", String(Browser)]);
+        problems.push(`chromium reports ${String(Browser)}, but docker/Dockerfile pins ${PINNED} (an image built before the pin? ./bin/stack.sh up rebuilds it)`);
+      }
+    } catch (error) {
+      problems.push(`could not read the Chromium version (${String(error.message).split("\n")[0]})`);
+    }
+  }
 
   // Layer 2: scrape targets. Only meaningful when Prometheus answers.
   if (!problems.some((p) => p.startsWith("prometheus"))) {
