@@ -40,5 +40,5 @@ curl http://localhost:9222/json/version
 | `/json/version` | ブラウザのビルド情報とトップレベルの `webSocketDebuggerUrl`。 |
 | `/json/list` | inspect 可能な target（tab）一覧と、その WebSocket URL。 |
 
-CDP クライアント（Puppeteer・Playwright、または BrowserHive のような独自 worker）は
+CDP クライアント（Puppeteer・Playwright、または BrowserHive のような独自のクライアント）は
 `webSocketDebuggerUrl` に接続して tab を駆動する。
