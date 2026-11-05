@@ -6,15 +6,17 @@ description: A Docker environment for running Chromium with Chrome DevTools Prot
 A Docker environment for running Chromium with **Chrome DevTools Protocol (CDP)** support.
 
 The image is meant to be **driven externally over CDP** — for example by
-[BrowserHive](https://github.com/uraitakahito/browserhive). Chromium is launched
-with a small, opinionated set of flags chosen to make that driving model
-predictable:
+BrowserHive, a web page capture server. What the image decides, and what it
+leaves to the client:
 
-- Each worker reuses **one tab** for its entire lifetime.
-- Navigating to `about:blank` is expected to **fully tear down** the previous
-  document — see [Driving model &amp; dbus](/internals/driving-model/).
-- The container has **no desktop environment**, so OS-integration probes
-  (keychain, gnome-keyring, …) are deliberately suppressed.
+- **The CDP client decides** how to use tabs and browser contexts; the image
+  enforces nothing — see [Driving model &amp; dbus](/internals/driving-model/).
+- The **Back-Forward Cache (bfcache) is off**, so going back through history
+  still issues requests that CDP's `Fetch` and `Network` domains can see — see
+  [Chromium flags](/configuration/chromium-flags/).
+- The container has **no desktop environment**, so the credential store is
+  pinned to `basic` and D-Bus is limited to a per-process session bus. System-bus
+  probes still fail and leave known noise on stderr.
 
 ## The image
 
@@ -30,18 +32,18 @@ uses the `chrome://inspect` screencast against headless workers. See
 ## How it fits together
 
 ```
-   CDP client (e.g. BrowserHive worker)
+   CDP client (e.g. BrowserHive)
             │  connects to :9222
             ▼
    ┌─────────────────────────────┐
    │ chromium-server container   │
    │   socat  :9222 → 127.0.0.1:9223
-   │   chromium (one tab, CDP)   │
+   │   chromium (CDP)            │
    └─────────────────────────────┘
 ```
 
-An external worker owns one persistent tab and drives it over CDP; the container
-itself has no UI. To watch the tab render, open the worker in the
+A CDP client connects from outside and drives Chromium over CDP; the container
+itself has no UI. To watch a tab render, open the worker in the
 `chrome://inspect` screencast — it works against headless workers
 (see [Verifying workers](/getting-started/verify/)).
 
@@ -51,10 +53,9 @@ itself has no UI. To watch the tab render, open the worker in the
 - [Verifying workers](/getting-started/verify/) — one-shot CDP checks and watching rendering.
 - [Chromium flags](/configuration/chromium-flags/) — every startup flag and why it is set.
 - [Chrome DevTools Protocol](/configuration/cdp/) — how to reach and check CDP.
-- [Driving model &amp; dbus](/internals/driving-model/) — the one-tab contract, bfcache, and the dbus story.
+- [Driving model &amp; dbus](/internals/driving-model/) — who decides how tabs are used, and the dbus story.
 
 ## Related projects
 
-- [BrowserHive](https://github.com/uraitakahito/browserhive) — a scalable web page
-  capture server that uses this project as its browser backend (worker pool over
-  CDP, screenshots / HTML / WACZ output).
+- BrowserHive — a web page capture server that uses this project as its browser
+  backend (screenshots / HTML / WACZ output over CDP).

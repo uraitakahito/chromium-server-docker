@@ -1,28 +1,21 @@
 ---
 title: Driving model & dbus
-description: The one-tab-per-worker contract the image is built around, and why Chromium is wrapped in dbus-run-session.
+description: Who decides how tabs are used, and why Chromium is wrapped in dbus-run-session.
 ---
 
-This image is not a general-purpose browser — it is a thin CDP container shaped
-around one specific driving model. Understanding that model explains most of the
-flag and dbus choices.
+This image is a thin CDP container: it starts Chromium, exposes CDP, and leaves
+the rest to the CDP client. This page covers what is left to the client and what
+the image takes care of itself.
 
-## The one-tab-per-worker contract
+## The CDP client decides
 
-An external worker (for example a [BrowserHive](https://github.com/uraitakahito/browserhive)
-worker) is expected to:
+How many tabs and browser contexts to use, and how to keep one task's state from
+reaching the next, is up to the CDP client. The image neither enforces nor assumes
+a particular pattern.
 
-- Own **one tab** for its entire lifetime.
-- Reset state between tasks by navigating to `about:blank` and clearing cookies
-  over CDP — **not** by opening new tabs.
-- Rely on that `about:blank` navigation to **fully tear down** the previous
-  document.
-
-The last point is why bfcache is disabled: with the Back-Forward Cache on,
-`about:blank` would suspend the previous document into memory instead of
-destroying it, leaking DOM, timers, and fingerprint surfaces across the task
-boundary. See [Chromium flags](/configuration/chromium-flags/) for the full
-rationale.
+Chromium starts with a tab already open. A client may drive that tab (as
+[`bin/cdp.sh`](/getting-started/verify/) does) or ignore it and open its own tabs
+in its own browser contexts.
 
 ## No desktop environment
 

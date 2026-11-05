@@ -41,5 +41,5 @@ Useful endpoints:
 | `/json/version` | Browser build and the top-level `webSocketDebuggerUrl`. |
 | `/json/list` | The list of inspectable targets (tabs) and their WebSocket URLs. |
 
-A CDP client (Puppeteer, Playwright, or a custom worker such as BrowserHive)
+A CDP client (Puppeteer, Playwright, or a custom client such as BrowserHive)
 connects to the `webSocketDebuggerUrl` to drive the tab.

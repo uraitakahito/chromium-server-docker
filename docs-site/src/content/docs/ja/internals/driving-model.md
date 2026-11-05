@@ -1,25 +1,15 @@
 ---
 title: 駆動モデルと dbus
-description: このイメージが前提とする「1 worker = 1 tab」契約と、なぜ Chromium を dbus-run-session で包むのか。
+description: tab の使い方を誰が決めるかと、なぜ Chromium を dbus-run-session で包むのか。
 ---
 
-このイメージは汎用ブラウザではなく、ひとつの駆動モデルに合わせて削り込んだ薄い CDP
-コンテナである。そのモデルを理解すると、flag と dbus の選択のほとんどが腑に落ちる。
+このイメージは薄い CDP コンテナである。Chromium を起動して CDP を公開し、残りは CDP クライアントに任せる。このページは、クライアントに任せることと、イメージ自身が受け持つことを説明する。
 
-## 1 worker = 1 tab の契約
+## CDP クライアントが決める
 
-外部 worker（例: [BrowserHive](https://github.com/uraitakahito/browserhive) の
-worker）は次を守ることを期待される:
+tab と BrowserContext をいくつ使うか、タスクの状態を次へ持ち越さないようにどうするかは、CDP クライアントが決める。イメージは特定の形を強制も前提もしない。
 
-- **ひとつの tab** を生存期間中ずっと使う。
-- タスク間の状態リセットは、新しい tab を開くのではなく、`about:blank` への遷移と
-  CDP による cookie クリアで行う。
-- その `about:blank` 遷移が直前 document を**完全に破棄する**ことに依存する。
-
-最後の点が bfcache を無効化する理由である。Back-Forward Cache が ON だと、
-`about:blank` は直前 document を破棄せずメモリへ suspend し、DOM・timer・fingerprint
-面をタスク境界をまたいで漏らす。詳しい理由は
-[Chromium フラグ](/configuration/chromium-flags/) を参照。
+Chromium は tab を 1 枚開いた状態で起動する。クライアントはその tab を駆動してもよいし（[`bin/cdp.sh`](/getting-started/verify/) はそうする）、使わずに自分の BrowserContext と tab を開いてもよい。
 
 ## desktop environment を持たない
 

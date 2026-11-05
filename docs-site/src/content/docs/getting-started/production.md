@@ -74,5 +74,5 @@ container stop chromium-1      # a manually started --rm container is deleted on
   Grafana show about the worker, and the alert rules.
 - [Chromium flags](/configuration/chromium-flags/) — what each startup flag
   does and how to override them with a custom `.conf`.
-- [Driving model &amp; dbus](/internals/driving-model/) — the one-tab-per-worker
-  contract this image is built around.
+- [Driving model &amp; dbus](/internals/driving-model/) — who decides how tabs
+  are used, and why Chromium is wrapped in `dbus-run-session`.

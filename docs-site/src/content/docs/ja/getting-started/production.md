@@ -74,5 +74,4 @@ container stop chromium-1      # 手で起こした --rm 付きのコンテナ�
   何を見せるか、alert の規則。
 - [Chromium フラグ](/ja/configuration/chromium-flags/) — 各起動フラグの意味と、
   カスタム `.conf` での上書き方法。
-- [駆動モデルと dbus](/ja/internals/driving-model/) — このイメージが前提とする
-  one-tab-per-worker の契約。
+- [駆動モデルと dbus](/ja/internals/driving-model/) — tab の使い方を誰が決めるかと、なぜ Chromium を `dbus-run-session` で包むのか。

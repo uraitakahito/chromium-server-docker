@@ -5,15 +5,11 @@ description: Chrome DevTools Protocol (CDP) 対応の Chromium を Docker で動
 
 Chrome DevTools Protocol (CDP) 対応の Chromium を動かす Docker 環境。
 
-このイメージは **CDP 経由で外部から駆動される**ことを前提とする（例:
-[BrowserHive](https://github.com/uraitakahito/browserhive)）。その駆動モデルを
-予測可能にするため、Chromium は小さく方針の定まった flag 群で起動する:
+このイメージは **CDP 経由で外部から駆動される**ことを前提とする（例: Web ページ捕獲サーバの BrowserHive）。イメージが決めることと、クライアントに任せることは次のとおり:
 
-- 各 worker は**ひとつの tab** を生存期間中ずっと使い回す。
-- `about:blank` への遷移で直前の document を**完全に破棄する**ことを期待する
-  — [駆動モデルと dbus](/internals/driving-model/) を参照。
-- **desktop environment を持たない**ので、OS 連携の probe（keychain,
-  gnome-keyring, …）は意図的に抑止している。
+- tab と BrowserContext をどう使うかは **CDP クライアントが決める**。イメージは何も強制しない — [駆動モデルと dbus](/internals/driving-model/) を参照。
+- **Back-Forward Cache（bfcache）は切ってある**。履歴で戻るときも要求が出て、CDP の `Fetch` と `Network` から見える — [Chromium フラグ](/configuration/chromium-flags/) を参照。
+- **desktop environment を持たない**ので、credential store は `basic` に固定し、D-Bus はプロセスごとの session bus だけを用意している。system bus への probe は失敗のまま残り、既知のノイズとして stderr に出る。
 
 ## イメージ
 
@@ -29,17 +25,17 @@ Chrome DevTools Protocol (CDP) 対応の Chromium を動かす Docker 環境。
 ## 全体の構成
 
 ```
-   CDP クライアント（例: BrowserHive の worker）
+   CDP クライアント（例: BrowserHive）
             │  :9222 に接続
             ▼
    ┌─────────────────────────────┐
    │ chromium-server container   │
    │   socat  :9222 → 127.0.0.1:9223
-   │   chromium（1 tab・CDP）     │
+   │   chromium (CDP)            │
    └─────────────────────────────┘
 ```
 
-外部 worker がひとつの永続 tab を持ち、それを CDP で駆動する。コンテナ自体に
+外部の CDP クライアントが接続し、CDP で Chromium を駆動する。コンテナ自体に
 UI は無い。tab の描画を見たいときは `chrome://inspect` のスクリーンキャストで
 worker を開く — headless のまま機能する
 （[worker の動作確認](/getting-started/verify/) 参照）。
@@ -50,10 +46,8 @@ worker を開く — headless のまま機能する
 - [worker の動作確認](/getting-started/verify/) — ワンショット CDP 確認と描画の目視。
 - [Chromium フラグ](/configuration/chromium-flags/) — 各起動 flag とその理由。
 - [Chrome DevTools Protocol](/configuration/cdp/) — CDP への到達方法と確認。
-- [駆動モデルと dbus](/internals/driving-model/) — 1 tab 契約・bfcache・dbus の事情。
+- [駆動モデルと dbus](/internals/driving-model/) — tab の使い方を誰が決めるかと、dbus の事情。
 
 ## 関連プロジェクト
 
-- [BrowserHive](https://github.com/uraitakahito/browserhive) — 本プロジェクトを
-  ブラウザバックエンドとして使う、スケーラブルな Web ページ捕獲サーバ（CDP による
-  worker pool、スクリーンショット / HTML / WACZ 出力）。
+- BrowserHive — 本プロジェクトをブラウザバックエンドとして使う、Web ページ捕獲サーバ（CDP で駆動し、スクリーンショット / HTML / WACZ を出力）。

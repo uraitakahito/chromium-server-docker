@@ -13,11 +13,14 @@ exec する。
 
 ## flag を上書きする
 
-`.conf` をコピーして編集し、イメージ内のものに bind-mount で被せる:
+`container run` は単一ファイルの bind-mount を断る（`path '…' is not a directory`）ので、ディレクトリを `/app` に被せる。このリポジトリの checkout から、イメージが `/app` に置くファイルをコピーし、`.conf` を編集する:
 
 ```sh
+mkdir custom-app
+cp chromium-headless.conf start-chromium.sh process-exporter.yml custom-app/
+# custom-app/chromium-headless.conf を編集してから:
 container run \
-  --mount type=bind,src=/path/to/custom.conf,dst=/app/chromium-headless.conf,readonly \
+  --mount type=bind,source="$PWD/custom-app",target=/app,readonly \
   ...
 ```
 
@@ -35,22 +38,16 @@ container run \
 | `--no-sandbox`, `--disable-setuid-sandbox` | 隔離境界はコンテナ側が担う。setuid sandbox は本イメージが与えない権限を要求する。 |
 | `--password-store=basic` | credential store を `basic` に固定し keychain 自動検出を抑止する — 下記参照。 |
 | `--disable-blink-features=AutomationControlled` | `AutomationControlled` Blink 機能を外し、automation の fingerprint を目立たなくする。 |
-| `--disable-back-forward-cache` | bfcache を無効化し、`about:blank` が直前 document を確実に破棄するようにする — 下記参照。 |
+| `--disable-back-forward-cache` | bfcache を無効化し、履歴で戻るときも CDP から見える要求が出るようにする — 下記参照。 |
 | `--disk-cache-size=1073741824` | 1 GiB の disk cache。int32 の最大値（`2147483647`）未満に収める必要がある。超えると Chromium は黙って拒否する。 |
 | `--user-data-dir=/tmp/chrome-profile` | プロファイルディレクトリを `/tmp` 下に置く。 |
 | `--start-maximized` | 凍結中のヘッドフル conf のみ — VNC ディスプレイでウィンドウを最大化。 |
 
 ## なぜ `--password-store=basic` か
 
-Linux では Chromium は起動時に credential backend を次の順で probe する:
+Linux の Chromium は、desktop environment から credential backend を 1 つ選ぶ。KDE なら KWallet、それ以外は Secret Service（`org.freedesktop.secrets`。GNOME Keyring が提供する）。選んだものが無ければ `basic`（user data dir 下の暗号化ファイル）へフォールバックする。
 
-1. GNOME Keyring（libsecret）
-2. KWallet（D-Bus 経由）
-3. `basic`（user data dir 下の暗号化ファイル）
-
-このイメージ（Debian slim・desktop environment 無し）には (1) も (2) も無いので、
-probe は毎回失敗して起動ごとに stderr へノイズを出す。`basic` を強制すると probe の
-経路自体をスキップできる。
+このイメージ（Debian slim・desktop environment 無し）にはどちらも無いので、flag が無いと Chromium は起動時に session bus で Secret Service を探し、`basic` へフォールバックする。`basic` を強制すると、その問い合わせを省き、コンテナの環境で backend が変わらないように固定できる。session bus がある限り、flag の有無で stderr は変わらない。
 
 ここで安全なのは、イメージが自動捕獲のために CDP で駆動され、ユーザーにパスワード
 保存を求めることが無いから。`basic` の弱いオンディスク暗号化は問題にならない。
@@ -58,17 +55,8 @@ probe は毎回失敗して起動ごとに stderr へノイズを出す。`basic
 
 ## なぜ `--disable-back-forward-cache` か
 
-Back-Forward Cache（bfcache）は、直前 document の DOM・JS 実行コンテキスト・timer・
-event listener をメモリに保持し、戻る/進むで即座に復元させる仕組み。Chromium 86+ で
-既定 ON。
+Back-Forward Cache（bfcache）は、直前 document をメモリに凍らせて残し、戻る/進むのときに通信なしで復元する仕組み。既定で ON。
 
-このイメージは、**ひとつの永続 tab** を生存期間中ずっと持つ外部 worker が CDP で駆動
-し、タスク間の状態リセットを `about:blank` への遷移と CDP による cookie クリアで行う。
-bfcache が ON だと、その `about:blank` 遷移は直前 document を**破棄せず** cache へ
-suspend するだけになり、DOM・timer・listener がタスク境界をまたいで生き残る。これは
-driver が目指すタスク間の隔離を損ない、状態・fingerprint 面・リソース使用が捕獲間で
-漏れる原因になる。
+CDP で駆動するパイプラインでは、これが要求を隠す。bfcache が ON だと、履歴で戻っても document は要求なしで復元され、CDP の `Fetch` にも `Network` にも何も映らない。この flag があれば document は作り直され、その要求は両方を通る。
 
-bfcache の利点（戻る/進むの即時復元）は、人手の介在が無い CDP 駆動のパイプラインには
-当てはまらない。Playwright・Puppeteer・browsertrix-crawler も同じ理由で既定で bfcache
-を無効化している。
+bfcache の利点（戻る/進むの即時復元）は、人手の介在が無い CDP 駆動のパイプラインには当てはまらない。Playwright と browsertrix-crawler も同じ flag を付けている。そうしないと `page.goBack()` のときに主要求を横取りできないからである。

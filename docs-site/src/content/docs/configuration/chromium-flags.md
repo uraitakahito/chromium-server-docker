@@ -13,11 +13,16 @@ mothballed units under `attic/` — its flags are still documented below.)
 
 ## Override the flags
 
-Copy a `.conf`, edit it, and bind-mount it over the one in the image:
+`container run` refuses to bind-mount a single file (`path '…' is not a directory`),
+so bind-mount a directory over `/app` instead. From a checkout of this repository,
+copy the files the image keeps in `/app`, then edit the `.conf`:
 
 ```sh
+mkdir custom-app
+cp chromium-headless.conf start-chromium.sh process-exporter.yml custom-app/
+# edit custom-app/chromium-headless.conf, then:
 container run \
-  --mount type=bind,src=/path/to/custom.conf,dst=/app/chromium-headless.conf,readonly \
+  --mount type=bind,source="$PWD/custom-app",target=/app,readonly \
   ...
 ```
 
@@ -35,22 +40,23 @@ container run \
 | `--no-sandbox`, `--disable-setuid-sandbox` | The container is the isolation boundary; the setuid sandbox needs privileges this image does not grant. |
 | `--password-store=basic` | Pin the credential store to `basic` to suppress keychain auto-detection — see below. |
 | `--disable-blink-features=AutomationControlled` | Drop the `AutomationControlled` Blink feature so the automation fingerprint is less obvious. |
-| `--disable-back-forward-cache` | Disable bfcache so `about:blank` truly tears down the previous document — see below. |
+| `--disable-back-forward-cache` | Disable bfcache so going back through history issues requests that CDP can see — see below. |
 | `--disk-cache-size=1073741824` | 1 GiB disk cache. Must stay under the int32 max (`2147483647`); Chromium silently rejects larger values. |
 | `--user-data-dir=/tmp/chrome-profile` | Profile directory under `/tmp`. |
 | `--start-maximized` | Mothballed headful conf only — maximise the window on the VNC display. |
 
 ## Why `--password-store=basic`
 
-On Linux, Chromium probes credential backends at startup in the order:
+On Linux, Chromium picks one credential store from the desktop environment:
+KWallet under KDE, the Secret Service (`org.freedesktop.secrets`, which GNOME
+Keyring provides) otherwise. If the store it picked is not there, it falls back
+to `basic` (an encrypted file under the user data dir).
 
-1. GNOME Keyring (libsecret)
-2. KWallet (over D-Bus)
-3. `basic` (an encrypted file under the user data dir)
-
-This image (Debian slim, no desktop environment) has neither (1) nor (2), so the
-probes always fail and emit noise to stderr on every launch. Forcing `basic`
-skips the probe path entirely.
+This image (Debian slim, no desktop environment) has neither, so without the flag
+Chromium looks for the Secret Service on the session bus at startup and falls back
+to `basic`. Forcing `basic` skips that lookup, and keeps the store from changing
+with the environment the container runs in. With the session bus in place, stderr
+is the same with or without the flag.
 
 It is safe here because the image is driven over CDP for automated capture and
 never asks a user to save passwords, so the weaker on-disk encryption `basic`
@@ -59,18 +65,15 @@ flag for the same reason.
 
 ## Why `--disable-back-forward-cache`
 
-The Back-Forward Cache (bfcache) keeps the previous document's DOM, JS execution
-context, timers, and event listeners alive in memory so a user pressing
-back/forward sees an instant restore. It is on by default in Chromium 86+.
+The Back-Forward Cache (bfcache) freezes the previous document in memory and, when
+a user goes back or forward, restores it without touching the network. It is on by
+default.
 
-This image is driven over CDP by an external worker that owns **one persistent
-tab** for its whole lifetime and resets state between tasks by navigating to
-`about:blank` and clearing cookies over CDP. With bfcache on, that `about:blank`
-navigation does **not** destroy the previous document — the tab is suspended into
-the cache instead, leaving DOM, timers, and listeners alive across the task
-boundary. That defeats the inter-task isolation the driver is trying to achieve
-and lets state, fingerprint surfaces, and resource usage bleed between captures.
+For a CDP-driven pipeline that hides requests. With bfcache on, going back through
+history restores the document with no request at all, so neither CDP's `Fetch`
+domain nor its `Network` domain sees anything. With the flag, the document is
+rebuilt and its request goes through both.
 
 bfcache's upside (instant back/forward) does not apply to a CDP-driven pipeline
-with no human interaction. Playwright, Puppeteer, and browsertrix-crawler all
-disable bfcache by default for the same reason.
+with no human interaction. Playwright and browsertrix-crawler set the same flag,
+because a main request cannot be intercepted during `page.goBack()` otherwise.
