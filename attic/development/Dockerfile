@@ -94,7 +94,7 @@ RUN cd /usr/src && \
     UPGRADEPACKAGES=false \
         /usr/src/extra-utils/utils/install.sh
 
-# 最新の chrome の dev の package と、主な文字のフォントを入れる
+# Debian の chromium と、主な文字のフォントを入れる
 # （中国語・日本語・アラビア語・ヘブライ語・タイ語ほか）。
 # 注: Puppeteer が入れる同梱の Chromium を動かすのに要る library も、これで入る。
 # https://zenn.dev/tom1111/articles/0dc7cde5c8e9bf
