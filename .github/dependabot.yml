@@ -41,7 +41,7 @@ updates:
         patterns:
           - "*"
 
-  # --- Docker base image (the FROM line of docker/Dockerfile) ---
+  # --- Docker の base image (docker/Dockerfile の FROM の行) ---
   - package-ecosystem: docker
     # 実体は docker/Dockerfile 1 本。以前は /docker/production と
     # /docker/development を指していたが **どちらも存在せず**、docker の PR は
@@ -65,7 +65,7 @@ updates:
     labels:
       - dependencies
 
-  # --- GitHub Actions (SHA-pinned in workflows) ---
+  # --- GitHub Actions (ほかの workflow は SHA で固定。docs-site.yml は tag 指定) ---
   - package-ecosystem: github-actions
     directory: /
     schedule:

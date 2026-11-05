@@ -1,16 +1,16 @@
-// check-stack.mjs — does the development stack (docker-compose.yml) answer?
+// check-stack.mjs —— 開発スタック（docker-compose.yml）は答えているか。
 //
-// Three layers, in order:
-//   1. the ports published on the host's loopback: Prometheus, Grafana, CDP — and
-//      the Chromium behind CDP is the version docker/Dockerfile pins
-//   2. every Prometheus scrape target is `up` (the DNS names inside the stack resolve),
-//      and the chromium-* jobs carry instance = the container name without the port
-//      (the dashboard's $instance variable and the rule summaries rely on it)
-//   3. inside the chromium container, process-exporter counts exactly one parent chromium
+// 3 つの層を順に見る:
+//   1. host の loopback に publish した口: Prometheus・Grafana・CDP。
+//      さらに、CDP の先の Chromium が docker/Dockerfile の固定した版であること
+//   2. Prometheus の scrape の target が全部 `up` であること（スタックの中の DNS 名が引ける）。
+//      さらに、chromium-* の job の instance が口を外したコンテナの名前であること
+//      （dashboard の $instance の変数と rule の summary がこれに頼る）
+//   3. chromium のコンテナの中で、process-exporter が親の chromium をちょうど 1 つ数えること
 //
-// Node 22+ built-ins only (fetch, child_process). `--wait` retries for up to 120 s,
-// which bin/stack.sh up uses because container-compose returns before anything answers
-// and the <service>.chromium-server names can take about a minute to resolve after start.
+// Node 22 以上の組み込みだけを使う（fetch・child_process・fs）。`--wait` は最大 120 秒やり直す。
+// bin/stack.sh up がこれを使うのは、container-compose が何も答えないうちに戻り、
+// 起動の後 <service>.chromium-server の名前が引けるまで 1 分ほど掛かることがあるから。
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
@@ -25,7 +25,7 @@ const GRAFANA = "http://127.0.0.1:3000";
 const CDP = "http://127.0.0.1:9222";
 const CHROMIUM = "chromium.chromium-server";
 const JOBS = ["chromium-node", "chromium-process", "chromium-cdp", "prometheus"];
-/** What /json/version must report: the upstream part of ARG CHROMIUM_VERSION. */
+/** /json/version が返すべき物: ARG CHROMIUM_VERSION の上流の部分。 */
 const PINNED = `Chrome/${upstreamOf(readPin(readFileSync(new URL("../docker/Dockerfile", import.meta.url), "utf8")).version)}`;
 
 const get = async (url, timeoutMs = 3000) => {
@@ -34,7 +34,7 @@ const get = async (url, timeoutMs = 3000) => {
   return res;
 };
 
-/** One pass. Returns the list of problems (empty = healthy) and the table rows. */
+/** 1 回分の点検。問題の一覧（空なら正常）と表の行を返す。 */
 const inspect = async () => {
   const rows = [];
   const problems = [];
@@ -54,8 +54,7 @@ const inspect = async () => {
     if (body.database !== "ok") throw new Error(`database=${String(body.database)}`);
   });
   await port("chromium (CDP)", `${CDP}/json/version`);
-  // A container from an image built before the current pin answers just as well,
-  // so ask which Chromium it runs.
+  // いまの固定より前に建てた image のコンテナも同じように答えるので、どの Chromium かを訊く。
   if (!problems.some((p) => p.startsWith("chromium (CDP)"))) {
     try {
       const { Browser } = await (await get(`${CDP}/json/version`)).json();
@@ -70,7 +69,7 @@ const inspect = async () => {
     }
   }
 
-  // Layer 2: scrape targets. Only meaningful when Prometheus answers.
+  // 層 2: scrape の target。Prometheus が答えるときだけ意味がある。
   if (!problems.some((p) => p.startsWith("prometheus"))) {
     try {
       const { data } = await (await get(`${PROMETHEUS}/api/v1/targets?state=any`)).json();
@@ -93,8 +92,8 @@ const inspect = async () => {
     } catch (error) {
       problems.push(`could not list Prometheus targets (${String(error.message).split("\n")[0]})`);
     }
-    // The chromium-cdp target being `up` only says blackbox answered Prometheus.
-    // Whether CDP itself answered is the probe's result.
+    // chromium-cdp の target が `up` でも、blackbox が Prometheus に答えたとしか言えない。
+    // CDP 自身が答えたかは、probe の結果で見る。
     try {
       const url = `${PROMETHEUS}/api/v1/query?query=${encodeURIComponent('probe_success{job="chromium-cdp"}')}`;
       const { data } = await (await get(url)).json();
@@ -110,8 +109,8 @@ const inspect = async () => {
     }
   }
 
-  // Layer 3: inside the chromium container. The exporter ports are not published,
-  // so ask the container itself (needs the `container` CLI).
+  // 層 3: chromium のコンテナの中。exporter の口は publish していないので、
+  // コンテナ自身に訊く（`container` の CLI が要る）。
   try {
     const text = execFileSync(
       "container",

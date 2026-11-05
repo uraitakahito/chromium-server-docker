@@ -1,16 +1,15 @@
-# blackbox_exporter modules for the chromium-server stack.
+# chromium-server のスタックの blackbox_exporter の module。
 modules:
   http_2xx:
     prober: http
     timeout: 5s
     http:
-      # The DNS domain publishes AAAA records but there is no IPv6 route
-      # between the VMs — force IPv4.
+      # DNS ドメインは AAAA レコードを返すが、VM の間に IPv6 の経路は無い —— IPv4 に固定する。
       preferred_ip_protocol: ip4
       ip_protocol_fallback: false
-      # Chromium's DevTools HTTP endpoint refuses a Host header that is not an
-      # IP literal or "localhost" (500 "Host header is specified and is not an
-      # IP address or localhost", DNS-rebinding protection). The probe therefore
-      # connects to chromium.chromium-server but presents Host: localhost.
+      # Chromium の DevTools の HTTP の口は、DNS rebinding の対策で、
+      # IP の直書きか "localhost" ではない Host ヘッダを断る
+      # （500 "Host header is specified and is not an IP address or localhost"）。
+      # だから probe は chromium.chromium-server に繋ぎつつ、Host: localhost を名乗る。
       headers:
         Host: localhost

@@ -12,17 +12,17 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "chromium-server-docker",
-      // i18n: English = root locale (no prefix) / Japanese = ja (/ja/ prefix).
-      // English files stay untouched; Japanese lives under docs/ja/. Untranslated
-      // pages fall back to English automatically.
+      // i18n: 英語は root locale(接頭辞なし)、日本語は ja(接頭辞 /ja/)。
+      // 英語のファイルはそのままで、日本語は docs/ja/ の下に置く。
+      // 訳していないページは、自動で英語にフォールバックする。
       defaultLocale: "root",
       locales: {
         root: { label: "English", lang: "en" },
         ja: { label: "日本語", lang: "ja" },
       },
-      // Every entry carries a `ja` translation. Starlight localises pages but
-      // not navigation, so without these the Japanese docs are translated
-      // pages hanging off an English index.
+      // どの項目にも `ja` の訳を付ける。
+      // Starlight はページを多言語にするが、ナビゲーションはしないので、
+      // これが無いと、日本語の docs は、英語の目次の下に訳のページがぶら下がる形になる。
       sidebar: [
         {
           label: "Getting started",
@@ -55,7 +55,7 @@ export default defineConfig({
               slug: "configuration/chromium-flags",
             },
             {
-              // The protocol's own name — not a phrase to translate.
+              // プロトコルそのものの名前で、訳す語句ではない。
               label: "Chrome DevTools Protocol",
               translations: { ja: "Chrome DevTools Protocol" },
               slug: "configuration/cdp",

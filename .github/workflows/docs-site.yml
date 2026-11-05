@@ -1,12 +1,12 @@
 name: docs-site
 
-# Build the Astro + Starlight docs site in docs-site/ and publish it to GitHub Pages.
-#   - pull_request: build only (a read-only check; never deploys).
-#   - push of a release tag (v*) / manual dispatch on a tag: build + deploy to
-#     Pages, so the published docs are those of a released version. A push to
-#     main does not publish; the github-pages environment allows deployments
-#     from v* tags only (gh workflow run docs-site.yml --ref vX.Y.Z).
-# Enable once under Settings -> Pages -> Source: "GitHub Actions".
+# docs-site/ の Astro + Starlight の docs を build して、GitHub Pages に公開する。
+#   - pull_request: build だけ（読み取りだけの確かめで、deploy はしない）。
+#   - release の tag（v*）の push、または tag の上の手動の起動: build して Pages に deploy する。
+#     だから公開される docs は、release した版の物になる。main への push では公開しない。
+#     github-pages の環境は、v* の tag からの deploy だけを許す
+#     （gh workflow run docs-site.yml --ref vX.Y.Z）。
+# 最初に 1 回、Settings -> Pages -> Source を "GitHub Actions" にして有効にする。
 
 on:
   push:
@@ -17,11 +17,11 @@ on:
       - '.github/workflows/docs-site.yml'
   workflow_dispatch:
 
-# Default token is read-only; the deploy job elevates its own permissions.
+# 既定の token は読み取りだけ。deploy の job が自分の権限を上げる。
 permissions:
   contents: read
 
-# Serialize Pages deploys.
+# Pages の deploy を 1 つずつ流す。
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -48,7 +48,7 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    # PRs run the build check only; publishing happens on a release tag / manual dispatch.
+    # PR では build の確かめだけを走らせる。公開は、release の tag か手動の起動で行う。
     if: ${{ github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest

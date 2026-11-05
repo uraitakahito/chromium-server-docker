@@ -10,15 +10,17 @@ on:
       - 'start-*.sh'
       - 'process-exporter.yml'
       - 'bin/pin-chromium*.mjs'
+      - 'bin/dockerfile-size.test.mjs'
       - '.github/workflows/docker-build.yml'
 
 permissions:
   contents: read
 
 jobs:
-  # The pure parts of the pin helper (bin/pin-chromium.mjs). The parts that talk to
-  # snapshot.debian.org are exercised by running the helper itself (docs:
-  # configuration/chromium-version).
+  # 版を固定する helper（bin/pin-chromium.mjs）の純粋な部分の試験と、
+  # docker/Dockerfile の大きさの見張り（bin/dockerfile-size.test.mjs）。
+  # snapshot.debian.org と話す部分は、helper そのものを走らせて確かめる
+  # （docs: configuration/chromium-version）。
   pin-helper:
     name: Pin helper tests
     runs-on: ubuntu-latest
@@ -31,15 +33,15 @@ jobs:
 
       - run: node --test 'bin/*.test.mjs'
 
-  # Build the production image and smoke-test it on both architectures it runs on:
-  # arm64 is what Apple Container builds on Apple silicon, amd64 is the usual CI and
-  # server architecture. Both run natively (ubuntu-24.04-arm is free for public
-  # repositories), so no QEMU. Building both also proves that the snapshot at
-  # APT_SNAPSHOT lists CHROMIUM_VERSION for each architecture: the two can differ for
-  # a few hours after a Debian security upload.
+  # production の image を、動かす両方の arch で build して smoke test する:
+  # arm64 は Apple silicon の Apple Container が建てる arch、amd64 は CI とサーバでふつうの arch。
+  # どちらも native で動く（ubuntu-24.04-arm は public のリポジトリなら無料）ので、QEMU は使わない。
+  # 両方を建てることで、次のことも確かめられる:
+  # APT_SNAPSHOT の時点の snapshot が、arch ごとに CHROMIUM_VERSION を載せていること。
+  # Debian の security の upload の後の数時間は、2 つの arch で載っている版が食い違うことがある。
   #
-  # Mothballed units (attic/development/, attic/debug/) are intentionally NOT built
-  # here — see the README.md in each attic directory.
+  # 凍結ユニット（attic/development/・attic/debug/）は、ここでは意図して build しない ——
+  # attic の各ディレクトリの README.md を参照。
   smoke:
     name: Build and smoke-test production (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
@@ -86,9 +88,10 @@ jobs:
           echo "CDP did not respond within 30s" >&2
           exit 1
 
-      # The pin in docker/Dockerfile is what consumers read (browserhive's stack check
-      # compares its /status against it), so the image must report exactly that
-      # version: the Debian package version inside, and the upstream version over CDP.
+      # docker/Dockerfile の固定は、利用者が読む
+      # （browserhive のスタックの点検は、自分の /status をこれに照らす）。
+      # だから image は、ちょうどその版を答えなければならない:
+      # 中では Debian の package の版を、CDP では上流の版を。
       - name: Verify the Chromium version against the pin
         run: |
           pinned="$(sed -n 's/^ARG CHROMIUM_VERSION=\(.*\)$/\1/p' docker/Dockerfile)"
@@ -99,16 +102,15 @@ jobs:
           [ "$installed" = "$pinned" ] || { echo "dpkg reports chromium $installed, but docker/Dockerfile pins $pinned" >&2; exit 1; }
           [ "$got" = "$want" ] || { echo "CDP reports $got, but docker/Dockerfile pins $want" >&2; exit 1; }
 
-      # For comparing builds: the same pin must give the same package versions on
-      # both architectures and on every rebuild.
+      # build を比べるため: 同じ固定なら、両方の arch でも、建て直すたびでも、
+      # 同じ package の版にならなければならない。
       - name: List the installed packages
         run: docker exec smoke dpkg-query -W -f="\${Package} \${Version}\n"
 
-      # The bundled exporters answer on their own ports. chromium-browser is
-      # exactly 1 (the parent process); renderers come and go, so only their
-      # presence is checked. Renderers may still be spawning right after CDP
-      # comes up, so retry for a few seconds. On failure, print what the
-      # exporters said and the process list, so the log explains itself.
+      # 同梱の exporter が、それぞれの口で答える。chromium-browser はちょうど 1（親の process）。
+      # renderer は増減するので、居ることだけを見る。
+      # CDP が起きた直後は renderer がまだ生まれている途中かもしれないので、数秒やり直す。
+      # 失敗したら、exporter の答えと process の一覧を出して、ログだけで事情が分かるようにする。
       - name: Verify the bundled exporters
         run: |
           node=""; procs=""

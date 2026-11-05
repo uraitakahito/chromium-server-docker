@@ -1,13 +1,12 @@
 ignored:
-  # DL3008 wants a version on every apt package. Versions are pinned another
-  # way: apt reads every package from snapshot.debian.org at APT_SNAPSHOT, and
-  # chromium / chromium-common / chromium-sandbox are named at CHROMIUM_VERSION
-  # (docker/Dockerfile, docs: configuration/chromium-version). Naming each of the
-  # other packages too would add a line to change on every bump and pin nothing
-  # more.
+  # DL3008 は、apt の package の全部に版を求める。版は別の形で固定している:
+  # apt は全部の package を APT_SNAPSHOT の時点の snapshot.debian.org から読み、
+  # chromium・chromium-common・chromium-sandbox は CHROMIUM_VERSION の版で名指す
+  # （docker/Dockerfile、docs: configuration/chromium-version）。
+  # ほかの package まで名指すと、上げるたびに変える行が増えるだけで、固定は何も強くならない。
   - DL3008
-  # `cd && git clone && cd && git checkout` is intentional for pinned-commit
-  # external repo cloning; WORKDIR would force layer fragmentation.
+  # `cd && git clone && cd && git checkout` は、意図した形。
+  # commit を固定して外部のリポジトリを clone するためで、WORKDIR にすると layer が細切れになる。
   - DL3003
 
 trustedRegistries:

@@ -1,3 +1,2 @@
-# Grafana reads every provisioning subdirectory it knows about and logs an
-# error for a missing one. Nothing is provisioned here; the directory exists
-# so the log stays clean.
+# Grafana は知っている provisioning のサブディレクトリを全部読み、無いとログにエラーを出す。
+# ここで provision する物は無い。ログを汚さないために、ディレクトリだけを置いている。

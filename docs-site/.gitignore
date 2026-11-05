@@ -1,6 +1,6 @@
-# build output
+# build の出力
 dist/
-# generated types / cache
+# 生成した型と cache
 .astro/
-# deps
+# 依存
 node_modules/

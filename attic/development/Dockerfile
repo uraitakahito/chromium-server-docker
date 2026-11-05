@@ -1,19 +1,19 @@
 #
-# ❄ MOTHBALLED (2026-07-11) — kept buildable but UNMAINTAINED.
+# ❄ 凍結（2026-07-11） —— build できる形で残すが、メンテナンスはしない。
 #
-# Development moved to "host + CDP + debug target" (see the docs-site
-# development page). This image is preserved for possible revival; see
-# README.md in this directory for the freeze notice and revival checklist.
+# 開発は「host ＋ CDP ＋ debug target」の形に移った（docs-site の development のページを参照）。
+# この image は、復活するときのために残す。
+# 凍結の告知と復活の手順は、このディレクトリの README.md を参照。
 #
-# Build from the repository root (Docker/OrbStack, not Apple Container —
-# VS Code attach was the point of this image):
+# リポジトリの root から build する（Docker/OrbStack で。Apple Container ではない ——
+# この image の要点は VS Code の attach だった）:
 #   docker build -f attic/development/Dockerfile . \
 #     --build-arg user_id=1001 --build-arg group_id=1001
 #
-# chromium-server-docker — Development image (noVNC, Node.js, dev tools;
-# processes managed by supervisord).
+# chromium-server-docker —— 開発用の image
+# （noVNC・Node.js・開発の道具。プロセスは supervisord が管理する）。
 #
-# Original docs (retired copy): ./docs.md / ./docs.ja.md
+# 元の docs（引退した写し）: ./docs.md / ./docs.ja.md
 #
 
 # Debian 12.13
@@ -32,7 +32,7 @@ ARG features_commit="9f7e672e27207f374d56e5da7f862b0b5b110b3f"
 ARG extra_utils_repository="https://github.com/uraitakahito/extra-utils.git"
 ARG extra_utils_commit="f975dbcb18f44b518cc181cedad57fd790d9894a"
 
-# Avoid warnings by switching to noninteractive for the build process
+# build の間は noninteractive に切り替えて、警告を避ける
 ENV DEBIAN_FRONTEND=noninteractive
 
 ARG LANG=C.UTF-8
@@ -51,7 +51,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists/*
 
 #
-# clone features
+# features を clone する
 #
 RUN cd /usr/src && \
     git clone ${features_repository} && \
@@ -59,9 +59,9 @@ RUN cd /usr/src && \
     git checkout ${features_commit}
 
 #
-# Add user and install common utils.
+# user を足し、共通の道具を入れる。
 #
-# For the list of installed packages, see:
+# 入る package の一覧は次を参照:
 #   https://github.com/uraitakahito/features/blob/9f7e672e27207f374d56e5da7f862b0b5b110b3f/src/common-utils/main.sh#L35-L79
 #
 RUN USERNAME=${user_name} \
@@ -69,14 +69,14 @@ RUN USERNAME=${user_name} \
     USERGID=${group_id} \
     CONFIGUREZSHASDEFAULTSHELL=true \
     UPGRADEPACKAGES=false \
-    # When using ssh-agent inside Docker, add the user to the root group
-    # to ensure permission to access the mounted socket.
+    # Docker の中で ssh-agent を使うときは、mount した socket に確実に触れるように、
+    # user を root の group に足す。
     #   https://github.com/uraitakahito/features/blob/9f7e672e27207f374d56e5da7f862b0b5b110b3f/src/common-utils/main.sh#L490-L495
     ADDUSERTOROOTGROUP=true \
         /usr/src/features/src/common-utils/install.sh
 
 #
-# Install extra utils.
+# 追加の道具を入れる。
 #
 RUN cd /usr/src && \
     git clone ${extra_utils_repository} && \
@@ -87,15 +87,15 @@ RUN cd /usr/src && \
     ADDHADOLINT=true \
     \
     ADDCLAUDECODE=true \
-    # Claude Code is installed under $HOME, so the username must be specified.
+    # Claude Code は $HOME の下に入るので、username を指定しなければならない。
     USERNAME=${user_name} \
     \
     UPGRADEPACKAGES=false \
         /usr/src/extra-utils/utils/install.sh
 
-# Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
-# Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
-# installs, work.
+# 最新の chrome の dev の package と、主な文字のフォントを入れる
+# （中国語・日本語・アラビア語・ヘブライ語・タイ語ほか）。
+# 注: Puppeteer が入れる同梱の Chromium を動かすのに要る library も、これで入る。
 # https://zenn.dev/tom1111/articles/0dc7cde5c8e9bf
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -110,34 +110,28 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 #
-# dbus daemon for session-bus wrapping
+# session bus で包むための dbus daemon
 #
-# Chromium probes the dbus session bus at startup for several
-# subsystems (Notifications, ScreenSaver, AT-SPI). Without any
-# session bus reachable, each probe emits a "Failed to connect to
-# the bus" line to stderr on every container launch.
+# Chromium は起動時に、いくつかの subsystem（Notifications・ScreenSaver・AT-SPI）のために、
+# dbus の session bus を probe する。session bus に届かないと、コンテナを起動するたびに、
+# probe ごとに "Failed to connect to the bus" の行が stderr に出る。
 #
-# We install the `dbus` package because `start-chromium.sh` invokes
-# `dbus-run-session chromium ...`. That helper, shipped in `dbus`,
-# spawns a fresh per-process session bus, exports
-# DBUS_SESSION_BUS_ADDRESS for the wrapped command, forwards
-# SIGHUP/SIGTERM/SIGINT to the child, and tears the daemon down
-# when chromium exits. No long-lived dbus daemon is needed in
-# supervisord.
+# `dbus` を入れるのは、`start-chromium.sh` が `dbus-run-session chromium ...` を呼ぶから。
+# `dbus` に入っているこの helper は、プロセスごとに新しい session bus を起こし、
+# 包んだコマンドに DBUS_SESSION_BUS_ADDRESS を渡し、SIGHUP/SIGTERM/SIGINT を子に転送し、
+# chromium が終わると daemon を片付ける。
+# supervisord に常駐の dbus daemon を置く必要は無い。
 #
-# Why NOT `dbus-x11` + DBUS_SESSION_BUS_ADDRESS=autolaunch:
-# `dbus-launch --autolaunch` (from `dbus-x11`) requires $DISPLAY
-# — it uses an X11 atom to coordinate daemons — and refuses to
-# spawn without it. Empirically broken in fully-headless containers
-# like this one, so `dbus-x11` is deliberately NOT installed.
+# `dbus-x11` と DBUS_SESSION_BUS_ADDRESS=autolaunch にしない理由:
+# `dbus-x11` の `dbus-launch --autolaunch` は $DISPLAY を要求する
+# （daemon どうしの調整に X11 の atom を使う）ので、無いと起動を断る。
+# このような完全に headless のコンテナでは実際に動かないので、`dbus-x11` は意図して入れない。
 #
-# Scope: this silences SESSION-bus errors only. SYSTEM-bus probes
-# (UPower, NetworkManager, BlueZ) still fail because
-# `dbus-daemon --system` is intentionally not running — running it
-# would require a long-lived root daemon and contradict this image's
-# "thin CDP container" stance. Remaining system-bus stderr
-# noise is acknowledged and left for log-aggregation-layer
-# filtering.
+# 範囲: 黙るのは session bus のエラーだけ。
+# system bus の probe（UPower・NetworkManager・BlueZ）は失敗したまま。
+# `dbus-daemon --system` を意図して動かしていないから ——
+# 動かすと常駐の root の daemon が要り、この image の「薄い CDP コンテナ」という方針に反する。
+# 残る system bus の stderr のノイズは、承知のうえで、ログを集める層の filter に任せる。
 #
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -146,7 +140,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 #
-# supervisor for process management
+# プロセスの管理のための supervisor
 #
 RUN apt-get update && \
     apt-get install -y --no-install-recommends supervisor && \
@@ -154,18 +148,18 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 #
-# socat for Chrome DevTools Protocol port forwarding
+# Chrome DevTools Protocol の口を転送する socat
 #
-# Why socat is required:
-#   Chromium's --remote-debugging-address=0.0.0.0 flag has been disabled or removed
-#   in recent versions for security reasons. The Chromium team has stated this flag
-#   "presents a security issue and should not be used" and there are "no plans to
-#   implement it in the new headless mode."
+# socat が要る理由:
+#   Chromium の --remote-debugging-address=0.0.0.0 は、security の理由で、
+#   最近の版では無効になったか消された。Chromium の開発陣は、この flag について
+#   "presents a security issue and should not be used" と述べ、
+#   "no plans to implement it in the new headless mode." としている。
 #
-#   As a workaround, we use socat to forward external connections (0.0.0.0:9222)
-#   to Chromium's localhost-only debugging port (127.0.0.1:9223).
+#   回避策として、socat が外からの接続（0.0.0.0:9222）を、
+#   Chromium の localhost だけの debugging の口（127.0.0.1:9223）へ転送する。
 #
-# References:
+# 参考:
 #   - https://issues.chromium.org/issues/40261787
 #   - https://issues.chromium.org/issues/40279369
 #
@@ -175,12 +169,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Puppeteer environment variables (development only, for running automation scripts)
+# Puppeteer の環境変数（開発のときだけ。自動化のスクリプトを走らせるため）
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 ##############################
-#  VNC support starts here   #
+#  VNC の対応はここから      #
 ##############################
 #
 # desktop-lite
@@ -189,7 +183,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 #
 RUN /usr/src/features/src/desktop-lite/install.sh
 ##############################
-#  VNC support ends here     #
+#  VNC の対応はここまで      #
 ##############################
 
 RUN usermod -aG audio ${user_name} && \
@@ -207,41 +201,40 @@ RUN cd /home/${user_name} && \
     ./install.sh
 
 ####################################
-#  Puppeteer support starts here   #
+#  Puppeteer の対応はここから      #
 ####################################
 #
-# WARNING: Do NOT expose port 9222 here.
+# 警告: ここで 9222 の口を EXPOSE しない。
 #
-# When VS Code's "Attach to Running Container" feature connects to this container,
-# it automatically detects exposed ports and sets up port forwarding from the Mac's
-# localhost to the container. This is called "Auto Forward Ports" feature.
+# VS Code の "Attach to Running Container" がこのコンテナに繋ぐと、EXPOSE された口を自動で見つけ、
+# Mac の localhost からコンテナへの転送を張る。これが "Auto Forward Ports" の機能である。
 #
-# In projects where a server runs on the Mac host (e.g., CDP server) and
-# the container connects to it via `--add-host=<hostname>:host-gateway`, exposing
-# the same port here causes a conflict.
+# Mac の host でサーバ（CDP のサーバなど）が動き、
+# コンテナが `--add-host=<hostname>:host-gateway` でそこへ繋ぐプロジェクトでは、
+# ここで同じ口を EXPOSE すると衝突する。
 #
-# If this port is exposed, VS Code will forward Mac's localhost:<port> to the
-# container's localhost:<port>, which intercepts connections intended for the
-# Mac host server. This causes WebSocket or HTTP connections to hang indefinitely.
+# この口を EXPOSE すると、VS Code は Mac の localhost:<port> を、
+# コンテナの localhost:<port> へ転送する。これが Mac の host のサーバ宛ての接続を横取りするので、
+# WebSocket や HTTP の接続がいつまでも止まる。
 #
-# Symptoms:
-#   - TCP connection succeeds (handshake completes)
-#   - But no data is received and the connection eventually times out
-#   - Works fine before VS Code attaches, fails after attaching
+# 症状:
+#   - TCP の接続は成功する（handshake は終わる）
+#   - しかしデータが届かず、接続はやがて timeout する
+#   - VS Code が attach する前は動き、attach した後に失敗する
 #
-# To disable VS Code's auto port forwarding, you can also add this to settings.json:
+# VS Code の自動の転送を切るには、settings.json に次を足してもよい:
 #   "remote.autoForwardPorts": false
-# Or ignore specific ports:
+# または、特定の口だけを無視する:
 #   "remote.portsAttributes": { "3000": { "onAutoForward": "ignore" } }
 #
 # EXPOSE 9222
 #
 ####################################
-#  Puppeteer support ends here     #
+#  Puppeteer の対応はここまで      #
 ####################################
 
 ##############################
-#  VNC support starts here   #
+#  VNC の対応はここから      #
 ##############################
 #
 # desktop-lite
@@ -252,31 +245,32 @@ ENV VNC_PORT=5901
 ENV NOVNC_PORT=6080
 WORKDIR /app
 
-# Copy supervisor configuration and startup script
-# Note: --chmod=644 is required because:
-#   - The container runs as 'developer' user (non-root)
-#   - Without explicit chmod, COPY preserves the source file's permissions
-#   - If the source file has 600 permissions, supervisord cannot read it
+# supervisor の設定と起動スクリプトを写す。
+# 注: --chmod=644 が要る理由:
+#   - コンテナは 'developer' user（非 root）で動く
+#   - chmod を明示しないと、COPY は元のファイルの権限を保つ
+#   - 元のファイルの権限が 600 だと、supervisord が読めない
 #
-# WARNING: Files copied to /app will be overwritten if you use bind mount:
+# 警告: bind mount を使うと、/app に写したファイルは上書きされる:
 #   --mount type=bind,src=`pwd`,dst=/app
-# In that case, the host's files are used instead of these copied files.
-# Paths are relative to the repository root (the build context).
-# supervisord-headful.conf / start-supervised.sh / chromium-headful.conf all
-# live in this directory (self-contained frozen unit — chromium-headful.conf
-# was copied here when the debug target was mothballed to attic/debug/ on
-# 2026-07-11); start-chromium.sh is still live at the root (production uses it).
+# そのときは、写したファイルではなく host のファイルが使われる。
+# パスはリポジトリの root（build context）からの相対。
+# supervisord-headful.conf・start-supervised.sh・chromium-headful.conf は、
+# どれもこのディレクトリに在る（自己完結した凍結ユニット ——
+# chromium-headful.conf は、2026-07-11 に debug target を attic/debug/ へ凍結したときに、
+# ここへ写した）。
+# start-chromium.sh はいまも live で、root に在る（production が使う）。
 COPY --chmod=644 attic/development/supervisord-headful.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 COPY --chmod=644 attic/development/chromium-headful.conf /app/chromium-headful.conf
 COPY --chmod=755 attic/development/start-supervised.sh /usr/local/bin/start-supervised.sh
 
-# Health check for CDP availability
+# CDP が使えるかの health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:9222/json/version || exit 1
 
 ENTRYPOINT ["/usr/local/share/desktop-init.sh"]
 CMD ["/usr/local/bin/start-supervised.sh"]
 ##############################
-#  VNC support ends here     #
+#  VNC の対応はここまで      #
 ##############################

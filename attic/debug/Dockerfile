@@ -1,35 +1,35 @@
 #
-# ❄ MOTHBALLED (2026-07-11) — kept buildable but UNMAINTAINED.
+# ❄ 凍結（2026-07-11） —— build できる形で残すが、メンテナンスはしない。
 #
-# The headful debug target (VNC/noVNC). Frozen because the chrome://inspect
-# DevTools screencast covers visual verification against headless production
-# workers (measured — see the Verifying workers docs page). See README.md in
-# this directory for the freeze notice and revival checklist.
+# headful の debug target（VNC/noVNC）。
+# 凍結した理由は、headless の production の worker に対する、
+# chrome://inspect の DevTools の screencast で、目視の確認が足りるから
+# （実測 —— docs の Verifying workers のページを参照）。
+# 凍結の告知と復活の手順は、このディレクトリの README.md を参照。
 #
-# This file is a self-contained snapshot: the `base` stage below is a copy
-# of docker/Dockerfile's base stage as of the freeze date, so later changes
-# to the live Dockerfile cannot break this frozen unit.
+# このファイルは自己完結のスナップショット:
+# 下の `base` の段は、凍結の日の docker/Dockerfile の base の段の写しなので、
+# 後で live の Dockerfile を変えても、この凍結ユニットは壊れない。
 #
-# Build from the repository root (Apple Container; Docker works too):
+# リポジトリの root から build する（Apple Container。Docker でも動く）:
 #   container build -f attic/debug/Dockerfile --target debug -t chromium-server:debug .
-# Or simply run ./attic/debug/dev.sh
+# または ./attic/debug/dev.sh を走らせるだけでよい。
 #
 
 # ---------------------------------------------------------------------------
-# base — shared Chromium server core (frozen copy)
+# base —— Chromium server の共通の中核（凍結した写し）
 # ---------------------------------------------------------------------------
 
-# Debian 12.14 slim variant. Tag retained for human-readable provenance;
-# multi-arch manifest list digest pins the actual bits we resolve to
-# (arm64 under Apple Container on Apple silicon, amd64 in CI).
+# Debian 12.14 の slim。tag は、人が出どころを読めるように残す。
+# 実際に解決する中身は、multi-arch の manifest list の digest が固定する
+# （Apple silicon の Apple Container では arm64、CI では amd64）。
 FROM debian:bookworm-20260623-slim@sha256:60eac759739651111db372c07be67863818726f754804b8707c90979bda511df AS base
 
-# The image runs Chromium as an unprivileged system user. The user / group
-# are created with --system so their UID / GID land in the Debian system
-# range (100-999), avoiding collisions with arbitrary host UID / GID values
-# that build-time ARGs would have to pass through.
+# この image は Chromium を、特権の無い system user で動かす。
+# user と group は --system で作り、UID / GID を Debian の system の範囲（100-999）に収める。
+# build の ARG で host の任意の UID / GID を受け渡すと衝突しうるので、それを避ける。
 
-# Avoid warnings by switching to noninteractive for the build process
+# build の間は noninteractive に切り替えて、警告を避ける
 ENV DEBIAN_FRONTEND=noninteractive
 
 ARG LANG=C.UTF-8
@@ -37,7 +37,7 @@ ENV LANG="$LANG"
 ARG TZ=UTC
 ENV TZ="$TZ"
 
-# Create unprivileged user + install runtime essentials.
+# 特権の無い user を作り、実行に欠かせない物を入れる。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -48,7 +48,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Chromium and fonts for major charsets (Chinese, Japanese, Arabic, Hebrew, Thai).
+# Chromium と、主な文字のフォント（中国語・日本語・アラビア語・ヘブライ語・タイ語）。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         chromium \
@@ -61,23 +61,22 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# dbus for session-bus wrapping (start-chromium.sh runs dbus-run-session;
-# see the live docker/Dockerfile for the full rationale).
+# session bus で包むための dbus（start-chromium.sh が dbus-run-session を走らせる。
+# 理由の全部は docs: internals/driving-model を参照）。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         dbus && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# supervisor for process management
+# プロセスの管理のための supervisor
 RUN apt-get update && \
     apt-get install -y --no-install-recommends supervisor && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# socat: forwards 0.0.0.0:9222 to Chromium's localhost-only CDP port 9223
-# (--remote-debugging-address=0.0.0.0 is disabled upstream; see the live
-# docker/Dockerfile for references).
+# socat: 0.0.0.0:9222 を、Chromium の localhost だけの CDP の口 9223 へ転送する
+# （--remote-debugging-address=0.0.0.0 は上流で無効。参考は docs: configuration/cdp を参照）。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         socat && \
@@ -86,19 +85,19 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# start-chromium.sh is still live at the repository root (production uses it).
+# start-chromium.sh はいまも live で、リポジトリの root に在る（production が使う）。
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 
 # ---------------------------------------------------------------------------
-# debug — headful + VNC/noVNC, for watching Chromium render during
-# development. Driven over CDP exactly like production; the only additions
-# are a virtual display and its VNC delivery.
+# debug —— headful と VNC/noVNC。開発中に Chromium の描画を見るための物。
+# production とまったく同じく CDP で駆動する。
+# 足したのは、仮想ディスプレイと、それを VNC で配る物だけ。
 #
-#   xvfb       : virtual X server (in-memory framebuffer, display :1)
-#   fluxbox    : minimal window manager (frames/titles for the browser window)
-#   x11vnc     : serves display :1 over VNC on :5901
-#   novnc      : browser-based VNC client pages
-#   websockify : bridges VNC (:5901) to WebSocket (:6080) for noVNC
+#   xvfb       : 仮想の X server（メモリ上の framebuffer、display :1）
+#   fluxbox    : 最小の window manager（ブラウザのウィンドウの枠と題）
+#   x11vnc     : display :1 を :5901 の VNC で配る
+#   novnc      : ブラウザで動く VNC クライアントのページ
+#   websockify : noVNC のために、VNC（:5901）を WebSocket（:6080）へ橋渡しする
 # ---------------------------------------------------------------------------
 FROM base AS debug
 
@@ -112,16 +111,14 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Paths are attic/debug/ based (this frozen unit is self-contained).
-# (--chmod=644: the container runs as the non-root 'chromium' user; without
-# an explicit chmod, COPY preserves source permissions and a 600 source
-# would make the file unreadable for supervisord.)
+# パスは attic/debug/ 基準（この凍結ユニットは自己完結している）。
+# （--chmod=644: コンテナは非 root の 'chromium' user で動く。
+# chmod を明示しないと COPY は元の権限を保ち、元が 600 だと supervisord がファイルを読めない。）
 COPY --chmod=644 attic/debug/supervisord-debug.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=644 attic/debug/chromium-headful.conf /app/chromium-headful.conf
 
-# Same probe as production: the CDP endpoint is the contract, VNC is only
-# a viewing aid. Evaluated by Docker-compatible runtimes; Apple Container
-# ignores HEALTHCHECK (probe externally).
+# production と同じ probe: 契約は CDP の口で、VNC は見るための補助にすぎない。
+# Docker 互換の runtime が評価する。Apple Container は HEALTHCHECK を無視する（外から probe する）。
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:9222/json/version || exit 1
 

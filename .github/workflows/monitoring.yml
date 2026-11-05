@@ -1,11 +1,10 @@
 name: monitoring
 
-# The development stack (docker-compose.yml + monitoring/) runs on Apple
-# Container, which GitHub's runners do not have. CI therefore checks the
-# configuration files themselves: Prometheus config and rules with promtool,
-# the blackbox config with its own --config.check, the dashboard JSON shape,
-# and the compose file's syntax. Whether the stack actually comes up is
-# verified locally (docs: getting-started/monitoring).
+# 開発スタック（docker-compose.yml と monitoring/）は Apple Container で動き、
+# GitHub の runner にはそれが無い。だから CI は設定ファイルそのものを確かめる:
+# Prometheus の設定と rule は promtool で、blackbox の設定はそれ自身の --config.check で、
+# dashboard の JSON は形を、compose のファイルは構文を見る。
+# スタックが実際に起きるかは、手元で確かめる（docs: getting-started/monitoring）。
 on:
   pull_request:
     branches: [main]
@@ -25,9 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Same image versions as docker-compose.yml, so promtool matches the
-      # Prometheus that will read these files. Mount at /etc/prometheus so the
-      # rule_files glob in prometheus.yml resolves exactly as at runtime.
+      # docker-compose.yml と同じ image の版にして、promtool を、
+      # これらのファイルを読む Prometheus に揃える。
+      # prometheus.yml の rule_files の glob が実行時と同じに解決するように、
+      # /etc/prometheus に mount する。
       - name: promtool check config
         run: |
           docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
@@ -46,9 +46,8 @@ jobs:
       - name: Dashboard JSON shape
         run: |
           jq -e '.uid == "chromium" and .id == null and (.panels | length) > 0 and (.templating.list | map(.name) | index("instance")) != null' monitoring/grafana/dashboards/chromium.json
-      # Syntax only: Docker Compose and container-compose agree on the file
-      # format but not on semantics (build.target, environment values that
-      # equal a service name), so a green step here is not a substitute for
-      # bin/stack.sh up.
+      # 構文だけ: Docker Compose と container-compose は、ファイルの形式では一致するが、
+      # 意味では一致しない（build.target・service 名と同じ環境変数の値）。
+      # だからここが緑でも、bin/stack.sh up の代わりにはならない。
       - name: Compose file syntax
         run: docker compose -f docker-compose.yml config --quiet

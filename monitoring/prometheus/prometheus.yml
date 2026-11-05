@@ -1,11 +1,11 @@
-# Prometheus for the chromium-server development stack (docker-compose.yml).
-# Targets are the <service>.chromium-server names of this compose project.
+# chromium-server の開発スタック（docker-compose.yml）の Prometheus。
+# target は、この compose project の <service>.chromium-server の名前。
 #
-# `instance` is the container name without the port (chromium.chromium-server)
-# in every chromium-* job, so the node, process and cdp series of one container
-# share it. The dashboard's $instance variable and the rule summaries rely on
-# this; a downstream stack that reuses chromium.json and rules/chromium.yml has
-# to relabel the same way.
+# chromium-* の job では、`instance` はどれも口を外したコンテナの名前（chromium.chromium-server）。
+# だから 1 つのコンテナの node・process・cdp の series で同じ値になる。
+# dashboard の $instance の変数と rule の summary が、これに頼る。
+# chromium.json と rules/chromium.yml を使い回す下流のスタックは、
+# 同じように relabel しなければならない。
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -14,7 +14,7 @@ rule_files:
   - /etc/prometheus/rules/*.yml
 
 scrape_configs:
-  # VM / OS level metrics of the chromium container (node_exporter, 6 collectors).
+  # chromium のコンテナの VM / OS の値（node_exporter。collector は 6 つ）。
   - job_name: chromium-node
     static_configs:
       - targets: ["chromium.chromium-server:9100"]
@@ -23,7 +23,7 @@ scrape_configs:
         regex: "([^:]+)(?::[0-9]+)?"
         target_label: instance
 
-  # Per-process-group metrics (process-exporter, grouped by chromium --type).
+  # process の群ごとの値（process-exporter。chromium の --type で群に分ける）。
   - job_name: chromium-process
     static_configs:
       - targets: ["chromium.chromium-server:9256"]
@@ -32,7 +32,7 @@ scrape_configs:
         regex: "([^:]+)(?::[0-9]+)?"
         target_label: instance
 
-  # CDP liveness through blackbox: GET /json/version must answer 2xx.
+  # blackbox 越しの CDP の生死: GET /json/version が 2xx を返さなければならない。
   - job_name: chromium-cdp
     metrics_path: /probe
     params:

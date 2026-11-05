@@ -1,15 +1,14 @@
 #!/bin/bash
 #
-# ❄ MOTHBALLED (2026-07-11) — kept working but UNMAINTAINED. See README.md.
+# ❄ 凍結（2026-07-11） —— 動く形で残すが、メンテナンスはしない。README.md を参照。
 #
-# Development helper for the frozen debug target (headful Chromium + VNC/noVNC).
-# Builds attic/debug/Dockerfile and runs one worker, then prints the CDP and
-# noVNC URLs.
+# 凍結した debug target（headful の Chromium と VNC/noVNC）のための、開発用の helper。
+# attic/debug/Dockerfile を build して worker を 1 つ動かし、CDP と noVNC の URL を出す。
 #
 #   ./attic/debug/dev.sh
 #
-# Can be invoked from any directory: the script cd's to the repository
-# root itself, so the build context is always correct.
+# どのディレクトリからでも呼べる: スクリプト自身がリポジトリの root へ cd するので、
+# build context はいつも正しい。
 #
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -18,14 +17,14 @@ NAME="chromium-debug"
 
 container build -f attic/debug/Dockerfile --target debug -t chromium-server:debug .
 
-# A previous worker may still be running; `--rm` makes stop also delete it.
+# 前の worker がまだ動いているかもしれない。`--rm` を付けてあるので、止めると消える。
 container stop "${NAME}" >/dev/null 2>&1 || true
 
-# Apple Container VMs default to 1 GiB; Chromium wants more (measured
-# ~520 MiB with a single tab, before real page weight).
+# Apple Container の VM の既定は 1 GiB で、Chromium にはもっと要る
+# （実測で tab 1 つで約 520 MiB。実際のページの重さを除いて）。
 container run -d --rm --cpus 4 --memory 4g --name "${NAME}" chromium-server:debug
 
-# The VM needs a moment before the network status is populated.
+# VM のネットワークの状態が埋まるまで、少し掛かる。
 sleep 3
 ip="$(container inspect "${NAME}" | python3 -c '
 import json, sys

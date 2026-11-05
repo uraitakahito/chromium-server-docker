@@ -1,5 +1,5 @@
-// node --test bin/ — the pure parts of pin-chromium.mjs. The network parts are exercised
-// by running the script itself (docs: configuration/chromium-version).
+// node --test 'bin/*.test.mjs' —— pin-chromium.mjs の純粋な部分の試験。
+// 通信する部分は、スクリプトそのものを走らせて確かめる（docs: configuration/chromium-version）。
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -39,7 +39,7 @@ test("writePin replaces only the two ARG lines with defaults", () => {
   const out = writePin(SAMPLE, { version: "156.0.8078.73-1~deb12u1", snapshot: "20261029T185537Z" });
   assert.match(out, /^ARG CHROMIUM_VERSION=156\.0\.8078\.73-1~deb12u1$/m);
   assert.match(out, /^ARG APT_SNAPSHOT=20261029T185537Z$/m);
-  // The re-declarations inside the stage stay without a value.
+  // 段の中の宣言し直しは、値を持たないまま。
   assert.match(out, /^ARG CHROMIUM_VERSION$/m);
   assert.match(out, /^ARG APT_SNAPSHOT$/m);
 });
