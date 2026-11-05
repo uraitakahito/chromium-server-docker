@@ -68,8 +68,8 @@ ARG APT_SNAPSHOT
 # 同じ GID の Debian の `dialout` group と衝突する。
 # その host で `groupadd --gid 20` を明示すると、役に立つ診断も無く失敗する。）
 #
-# chromium-server のコンテナでは bind mount を意図して使わないので、
-# host のファイルの所有者に合わせる必要は無い。
+# 既定の起動では bind mount を使わない。flag を上書きするときの mount は読み取りだけ
+# （docs: configuration/chromium-flags）。どちらも host のファイルの所有者に合わせる必要は無い。
 # （attic/ に凍結した development の image は、/app の下にソースを bind mount していたので、
 # ARG で user を作る形を残した。）
 
