@@ -1,7 +1,8 @@
 #
 # ❄ 凍結（2026-07-11） —— build できる形で残すが、メンテナンスはしない。
 #
-# 開発は「host ＋ CDP ＋ debug target」の形に移った（docs-site の development のページを参照）。
+# 開発は「host ＋ CDP ＋ debug target」の形に移った
+# （当時の手順は attic/debug/docs.ja.md を参照。debug target も同じ日に凍結した）。
 # この image は、復活するときのために残す。
 # 凍結の告知と復活の手順は、このディレクトリの README.md を参照。
 #
