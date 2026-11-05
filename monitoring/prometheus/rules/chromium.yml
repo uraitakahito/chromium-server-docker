@@ -1,8 +1,8 @@
-# Alert rules for the chromium containers, one evaluation per container (no rule
-# aggregates across `instance`, so a stack with several containers gets one alert
-# per container). Evaluated by Prometheus; there is no Alertmanager in this
-# stack — the firing state is visible on http://127.0.0.1:9090/alerts and in
-# Grafana's Alerting view.
+# chromium のコンテナの alert の rule。評価はコンテナごと
+# （`instance` をまたいで集約する rule は無いので、
+# 複数のコンテナのスタックでは、コンテナごとに 1 つの alert になる）。
+# 評価するのは Prometheus で、このスタックに Alertmanager は無い ——
+# 発火の状態は http://127.0.0.1:9090/alerts と、Grafana の Alerting の画面で見える。
 groups:
   - name: chromium
     rules:

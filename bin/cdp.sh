@@ -1,29 +1,28 @@
 #!/bin/bash
 #
-# cdp.sh — zero-dependency CDP helper for quick verification.
+# cdp.sh —— 手早く確かめるための、依存ゼロの CDP の helper。
 #
-# Talks to a chromium-server worker over the Chrome DevTools Protocol using
-# nothing but Node's built-in fetch/WebSocket (Node 22+). No npm install,
-# no throwaway scripts.
+# Node の組み込みの fetch と WebSocket（Node 22 以上）だけで、
+# chromium-server の worker と Chrome DevTools Protocol で話す。
+# npm install も、使い捨てのスクリプトも要らない。
 #
-#   ./bin/cdp.sh smoke [url]     # version + open a page + print its title
-#   ./bin/cdp.sh goto <url>      # navigate and wait for the load event
-#   ./bin/cdp.sh title           # print document.title
-#   ./bin/cdp.sh eval <expr>     # evaluate a JS expression, print the result
-#   ./bin/cdp.sh shot <file.png> # save a screenshot of the page
-#   ./bin/cdp.sh targets         # list open tabs (url + title)
+#   ./bin/cdp.sh smoke [url]     # 版を出し、ページを開き、題を出す
+#   ./bin/cdp.sh goto <url>      # 遷移して load イベントを待つ
+#   ./bin/cdp.sh title           # document.title を出す
+#   ./bin/cdp.sh eval <expr>     # JS の式を評価して結果を出す
+#   ./bin/cdp.sh shot <file.png> # ページのスクリーンショットを保存する
+#   ./bin/cdp.sh targets         # 開いている tab の一覧（url と title）
 #
-# Worker selection: $CDP_TARGET (worker name), else the compose stack's
-# worker (chromium.chromium-server, reached through the port published on
-# 127.0.0.1:9222), else the first of chromium-1, chromium-*. Exits non-zero on
-# any failure, so it can back automated smoke checks as-is.
+# worker の選び方: $CDP_TARGET（worker の名前）、無ければ compose のスタックの worker
+# （chromium.chromium-server。127.0.0.1:9222 に publish した口から繋ぐ）、
+# 無ければ chromium-1、chromium-* の順で最初の物。
+# 失敗すると 0 以外で終わるので、そのまま自動の smoke の確かめに使える。
 #
 set -euo pipefail
 CMD="${1:-help}"; shift || true
 
-# --- resolve worker name: CDP_TARGET -> chromium.chromium-server -> chromium-1 -> first chromium-* ---
-# (a revived attic/debug worker named chromium-debug is still matched by
-# the chromium-* fallback)
+# --- worker を決める: CDP_TARGET -> chromium.chromium-server -> chromium-1 -> 最初の chromium-* ---
+# （attic/debug を復活させた chromium-debug という worker も、最後の chromium-* で当たる）
 NAME="${CDP_TARGET:-}"
 if [ -z "$NAME" ]; then
     NAME=$(container ls --format json | python3 -c '
@@ -42,9 +41,9 @@ if [ -z "$NAME" ]; then
     exit 1
 fi
 
-# --- resolve the address ---
-# The compose stack publishes CDP on the host's loopback (127.0.0.1:9222);
-# everything else is reached on the container's own IP, port 9222.
+# --- 繋ぎ先を決める ---
+# compose のスタックは、CDP を host の loopback（127.0.0.1:9222）に publish する。
+# それ以外は、コンテナ自身の IP の 9222 の口に繋ぐ。
 PORT=9222
 if [ "$NAME" = "chromium.chromium-server" ]; then
     IP=127.0.0.1
@@ -55,9 +54,9 @@ print(d["status"]["networks"][0]["ipv4Address"].split("/")[0])' 2>/dev/null) || 
     exit 1
 fi
 
-# --- CDP proper: Node built-in fetch + WebSocket (zero dependencies) ---
-# The embedded JS must not contain single quotes (it is single-quoted here).
-# shellcheck disable=SC2016  # ${...} below are JS template literals, not shell
+# --- CDP の本体: Node の組み込みの fetch と WebSocket（依存ゼロ） ---
+# 埋め込みの JS に一重引用符を書いてはいけない（ここで一重引用符で囲っている）。
+# shellcheck disable=SC2016  # 下の ${...} は JS のテンプレートリテラルで、シェルの物ではない
 NAME="$NAME" exec node --input-type=module -e '
 const [ip, port, cmd, ...args] = process.argv.slice(1);
 const base = `http://${ip}:${port}`;
@@ -67,15 +66,14 @@ const usage = "usage: cdp.sh smoke [url] | goto URL | title | eval EXPR | shot F
 if (cmd === "help" || cmd === "--help" || cmd === "-h") { console.log(usage); process.exit(0); }
 
 try {
-  if (cmd === "targets") {           // HTTP only, no WebSocket needed
+  if (cmd === "targets") {           // HTTP だけで済む。WebSocket は要らない
     for (const t of await j("/json/list"))
       if (t.type === "page") console.log(`${t.url}\t${t.title}`);
     process.exit(0);
   }
 
-  // Ensure a page target exists: reuse the first open tab, create one only if
-  // none exists. (PUT /json/new ignores its url= parameter on current
-  // Chromium — measured — but plain tab creation still works.)
+  // page の target を確保する: 開いている最初の tab を使い回し、無いときだけ作る。
+  // いまの Chromium の PUT /json/new は url= の引数を無視する（実測）が、tab を作るだけなら動く。
   const page = (await j("/json/list")).find(t => t.type === "page")
             ?? await j("/json/new", { method: "PUT" });
 
@@ -84,8 +82,8 @@ try {
     ws.onopen = ok;
     ws.onerror = () => ng(new Error(`cannot connect to ${page.webSocketDebuggerUrl}`));
   });
-  // Watchdog: a wedged connection must not hang the CLI forever. unref-ed so
-  // it never delays a normal exit.
+  // watchdog: 詰まった接続で CLI が永久に止まらないようにする。
+  // 正常な終了を遅らせないように unref する。
   setTimeout(() => { console.error("error: CDP call timed out"); process.exit(1); }, 30000).unref();
 
   let seq = 0;
@@ -101,12 +99,12 @@ try {
     new Promise(ok => waiters.set(method, ok)),
     new Promise((_, ng) => setTimeout(() => ng(new Error(`timeout waiting for ${method}`)), ms)),
   ]);
-  const goto = async (url) => {       // wait for the load event, not a fixed sleep
+  const goto = async (url) => {       // 決め打ちの sleep ではなく、load イベントを待つ
     await call("Page.enable");
     const loaded = once("Page.loadEventFired", 15000);
     const nav = await call("Page.navigate", { url });
-    // Chromium "successfully" loads an error page on DNS/connect failures;
-    // the navigate response carries the real outcome in errorText.
+    // Chromium は DNS や接続の失敗でも、エラーのページを読み込んで「成功」する。
+    // 本当の結果は、navigate の応答の errorText に在る。
     if (nav.errorText) throw new Error(`navigation failed: ${nav.errorText}`);
     await loaded;
   };
@@ -127,14 +125,14 @@ try {
   } else if (cmd === "smoke") {
     const v = await j("/json/version");
     console.log(`${process.env.NAME} (${ip}): ${v.Browser}`);
-    // Default to a live, constantly-changing page: a static page like
-    // example.com cannot show that real content is actually being fetched.
+    // 既定は、いつも内容が変わる本物のページにする:
+    // example.com のような静的なページでは、実際に中身を取れていることを示せない。
     const url = args[0] ?? "https://www.yahoo.co.jp/";
     try {
       await goto(url);
     } catch (e) {
-      // A freshly booted worker VM may drop the first request while its
-      // network settles (net::ERR_NETWORK_CHANGED). Retry once, visibly.
+      // 起動した直後の worker の VM は、ネットワークが落ち着くまで、最初の要求を落とすことがある
+      // （net::ERR_NETWORK_CHANGED）。見える形で 1 回だけやり直す。
       console.error(`first attempt failed (${e.message}), retrying once...`);
       await new Promise(r => setTimeout(r, 2000));
       await goto(url);

@@ -1,45 +1,45 @@
 #!/usr/bin/env node
-// pin-chromium.mjs — choose CHROMIUM_VERSION and APT_SNAPSHOT for docker/Dockerfile.
+// pin-chromium.mjs —— docker/Dockerfile の CHROMIUM_VERSION と APT_SNAPSHOT を選ぶ。
 //
-// The image installs every apt package from snapshot.debian.org at APT_SNAPSHOT, and
-// chromium / chromium-common / chromium-sandbox at exactly CHROMIUM_VERSION. This
-// script picks the two values together:
+// image は apt の package を全部、APT_SNAPSHOT の時点の snapshot.debian.org から入れ、
+// chromium・chromium-common・chromium-sandbox は、ちょうど CHROMIUM_VERSION の版を入れる。
+// このスクリプトは 2 つの値を一緒に選ぶ:
 //
-//   1. the version: the newest chromium for the base image's codename
-//      (bookworm → `~deb12u…`), or the one given on the command line;
-//   2. the time: the earliest debian-security import whose index lists that version
-//      for every architecture the image is built for, and which is not earlier than
-//      the base image's own snapshot time (the FROM tag's date).
+//   1. 版: base image の codename の最新の chromium（bookworm なら `~deb12u…`）、
+//      またはコマンドラインで渡された版
+//   2. 時点: image を建てる全部の arch の索引にその版が載っている、
+//      いちばん早い debian-security の取り込み。
+//      ただし、base image 自身の snapshot の時点（FROM の tag の日付）より前ではないもの
 //
-// The search for the time starts at the latest first_seen of the three packages on
-// both architectures. first_seen is when a .deb reached the pool, not when the index
-// listed it (chromium-l10n 156.0.8078.73 reached the pool at 13:12 on 2026-10-29,
-// while the amd64 index still listed .47 at 18:00), so each candidate is checked
-// against the Packages index itself.
+// 時点の探索は、3 つの package の両方の arch での first_seen のうち、いちばん遅いものから始める。
+// first_seen は .deb が pool に入った時刻で、索引に載った時刻ではない
+// （chromium-l10n 156.0.8078.73 が pool に入ったのは 2026-10-29 の 13:12 だが、
+// 18:00 の amd64 の索引はまだ .47 を載せていた）。
+// だから候補ごとに、Packages の索引そのものに照らす。
 //
-// Usage:
-//   node bin/pin-chromium.mjs                  # show the pin and what it would become
-//   node bin/pin-chromium.mjs --write          # write the newest version into docker/Dockerfile
-//   node bin/pin-chromium.mjs --write <ver>    # write the given Debian version
+// 使い方:
+//   node bin/pin-chromium.mjs                  # いまの固定と、変えるならどうなるかを出す
+//   node bin/pin-chromium.mjs --write          # 最新の版を docker/Dockerfile に書く
+//   node bin/pin-chromium.mjs --write <ver>    # 渡した Debian の版を書く
 //
-// Needs Node 22+ (fetch) and `xz` on PATH: the snapshot serves Packages.xz only.
-// Docs: configuration/chromium-version.
+// Node 22 以上（fetch）と、PATH の上の `xz` が要る: snapshot は Packages.xz しか配らない。
+// docs: configuration/chromium-version。
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SNAPSHOT = "https://snapshot.debian.org";
-/** The architectures the image is built for: arm64 under Apple Container, amd64 in CI. */
+/** image を建てる arch: Apple Container では arm64、CI では amd64。 */
 export const ARCHES = ["amd64", "arm64"];
-/** The packages the Dockerfile installs at CHROMIUM_VERSION. */
+/** Dockerfile が CHROMIUM_VERSION の版で入れる package。 */
 export const PACKAGES = ["chromium", "chromium-common", "chromium-sandbox"];
-/** Debian's stable-update suffix for each codename, e.g. 156.0.8078.73-1~deb12u1. */
+/** codename ごとの、Debian の stable の更新の接尾辞。例: 156.0.8078.73-1~deb12u1。 */
 export const SUFFIX = { bookworm: "~deb12u", trixie: "~deb13u" };
-/** How many debian-security imports to try after the first candidate. */
+/** 最初の候補の後に試す、debian-security の取り込みの数。 */
 const MAX_IMPORTS = 24;
 
-/** Reads the base image and the two pinned values from the Dockerfile text. */
+/** Dockerfile のテキストから、base image と固定した 2 つの値を読む。 */
 export function readPin(text) {
   const from = /^FROM debian:([a-z]+)-(\d{8})-slim@sha256:[0-9a-f]{64} AS base$/m.exec(text);
   const version = /^ARG CHROMIUM_VERSION=(\S+)$/m.exec(text);
@@ -52,31 +52,31 @@ export function readPin(text) {
   }
   return {
     codename: from[1],
-    // The tag's date is the snapshot time the base image was built from (debuerreotype).
+    // tag の日付は、base image を作った snapshot の時点（debuerreotype）。
     baseSnapshot: `${from[2]}T000000Z`,
     version: version[1],
     snapshot: snapshot[1],
   };
 }
 
-/** Returns the Dockerfile text with both ARG lines replaced. */
+/** 2 つの ARG の行を置き換えた Dockerfile のテキストを返す。 */
 export function writePin(text, { version, snapshot }) {
-  // Replacement functions, not strings: a `$` in a replacement string is a pattern.
+  // 文字列ではなく関数で置き換える: 置換の文字列の中の `$` はパターンになる。
   return text
     .replace(/^ARG CHROMIUM_VERSION=\S+$/m, () => `ARG CHROMIUM_VERSION=${version}`)
     .replace(/^ARG APT_SNAPSHOT=\S+$/m, () => `ARG APT_SNAPSHOT=${snapshot}`);
 }
 
-/** The upstream part of a Debian version: 156.0.8078.73-1~deb12u1 → 156.0.8078.73. */
+/** Debian の版の上流の部分: 156.0.8078.73-1~deb12u1 → 156.0.8078.73。 */
 export const upstreamOf = (debianVersion) => debianVersion.split("-")[0];
 
-/** snapshot.debian.org lists versions newest first; the first with the suffix wins. */
+/** snapshot.debian.org は版を新しい順に並べるので、接尾辞を持つ最初の版を取る。 */
 export const newestFor = (versions, suffix) => versions.find((v) => v.includes(suffix));
 
-/** The latest of some snapshot times (YYYYMMDDTHHMMSSZ sorts as text). */
+/** snapshot の時点のうち、いちばん遅いもの（YYYYMMDDTHHMMSSZ は文字列のまま比べられる）。 */
 export const latest = (times) => [...times].sort().at(-1);
 
-/** Package name → set of versions, from the text of a Packages index. */
+/** Packages の索引のテキストから作る、package の名前 → 版の集合。 */
 export function versionsIn(packagesText, names) {
   const wanted = new Set(names);
   const found = new Map();
@@ -96,7 +96,7 @@ const getJson = async (path) => {
   return res.json();
 };
 
-/** The latest first_seen in debian-security over the packages and architectures. */
+/** package と arch を通して、debian-security での first_seen がいちばん遅いもの。 */
 async function firstSeen(version) {
   const v = encodeURIComponent(version);
   const times = [];
@@ -116,7 +116,7 @@ async function firstSeen(version) {
   return latest(times);
 }
 
-/** Whether the debian-security index at `time` lists `version` for every package and architecture. */
+/** `time` の debian-security の索引が、全部の package と arch で `version` を載せているか。 */
 async function indexLists(time, codename, version) {
   for (const arch of ARCHES) {
     const url = `${SNAPSHOT}/archive/debian-security/${time}/dists/${codename}-security/main/binary-${arch}/Packages.xz`;
@@ -134,10 +134,10 @@ async function indexLists(time, codename, version) {
   return true;
 }
 
-/** The earliest debian-security import, at or after `start`, whose index lists `version`. */
+/** `start` 以降で、索引に `version` が載っている、いちばん早い debian-security の取り込み。 */
 async function chooseSnapshot(codename, start, version) {
   const imports = (await getJson(`/mr/timestamp/?archive=debian-security&after=${start}`)).result["debian-security"] ?? [];
-  // Asking the snapshot for `start` yields the latest import at or before it.
+  // snapshot に `start` を問うと、その時刻以前の最新の取り込みが返る。
   const candidates = [start, ...imports.filter((t) => t > start)].slice(0, MAX_IMPORTS + 1);
   for (const time of candidates) {
     if (await indexLists(time, codename, version)) return time;

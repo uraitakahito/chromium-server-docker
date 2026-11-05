@@ -1,21 +1,21 @@
 #!/bin/bash
 #
-# stack.sh — the one entry point for the development stack (docker-compose.yml):
-# the chromium worker plus Prometheus, Grafana and blackbox on Apple Container.
+# stack.sh —— 開発スタック（docker-compose.yml）のただ 1 つの入口。
+# Apple Container の上の、chromium の worker と Prometheus・Grafana・blackbox。
 #
-#   ./bin/stack.sh up       # preflight → container-compose up -d -b → wait until everything answers
-#   ./bin/stack.sh down     # stop the containers (they stay; `container rm` deletes them)
-#   ./bin/stack.sh check    # is everything answering? (add --wait to retry for up to 120 s)
-#   ./bin/stack.sh reload   # tell Prometheus to re-read prometheus.yml and the rules
+#   ./bin/stack.sh up       # preflight → container-compose up -d -b → 全部が答えるまで待つ
+#   ./bin/stack.sh down     # コンテナを止める（残る。消すのは `container rm`）
+#   ./bin/stack.sh check    # 全部が答えているか（--wait を付けると最大 120 秒やり直す）
+#   ./bin/stack.sh reload   # Prometheus に prometheus.yml と rules を読み直させる
 #
-# Why a script and not a raw `container-compose up`: container-compose has no
-# healthcheck (up returns before anything answers) and does not tell you when
-# the DNS domain is missing (non-root containers then silently cannot resolve
-# each other). Docs: getting-started/monitoring.
+# 生の `container-compose up` でなくスクリプトにする理由:
+# docker-compose.yml に healthcheck を書いていないので、up は何も答えないうちに戻る。
+# DNS ドメインが無くても、container-compose は教えてくれない（そのとき非 root のコンテナは、
+# 黙って互いの名前を引けない）。docs: getting-started/monitoring。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DOMAIN=chromium-server   # = `name:` in docker-compose.yml
+DOMAIN=chromium-server   # = docker-compose.yml の `name:`
 
 case "${1:-}" in
   up)
@@ -27,9 +27,10 @@ case "${1:-}" in
       echo "  sudo container system dns create $DOMAIN" >&2
       exit 1
     fi
-    # One stack at a time: the consumers' stacks publish their own chromium on
-    # 127.0.0.1:9222. If that port is taken and it is not our own worker, the
-    # other stack is still running — stop it first instead of starting next to it.
+    # 同時に起こすのは 1 つだけ:
+    # 利用者のスタックは、自分の chromium を 127.0.0.1:9222 に publish する。
+    # この口が塞がっていて自分の worker でなければ、ほかのスタックがまだ動いている ——
+    # 並べて起こさず、先にそれを止める。
     if ! container ls 2>/dev/null | awk 'NR > 1 { print $1 }' | grep -qx "chromium.$DOMAIN" \
        && nc -z -G 2 127.0.0.1 9222 2>/dev/null; then
       echo "error: 127.0.0.1:9222 is already in use by another stack (capture-ledger? browserhive?)." >&2
@@ -47,7 +48,7 @@ case "${1:-}" in
     exec node bin/check-stack.mjs "$@"
     ;;
   reload)
-    # Prometheus runs with --web.enable-lifecycle; the port is published on loopback.
+    # Prometheus は --web.enable-lifecycle で動いていて、口は loopback に publish してある。
     curl -sf -X POST http://127.0.0.1:9090/-/reload && echo "prometheus: reloaded"
     ;;
   *)

@@ -1,5 +1,5 @@
-# Dashboards are provisioned from files; the repository is the source of
-# truth. Edit in the UI, export the JSON, commit it.
+# dashboard はファイルから provision する。正はリポジトリに在る。
+# UI で直し、JSON を export して commit する。
 apiVersion: 1
 providers:
   - name: chromium-server

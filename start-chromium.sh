@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Chromium unified startup script — reads flags from $CHROMIUM_CONFIG and starts
-# Chromium wrapped in dbus-run-session.
+# Chromium の共通の起動スクリプト —— $CHROMIUM_CONFIG から flag を読み、
+# dbus-run-session で包んで Chromium を起動する。
 #
-# Environment variables:
-#   CHROMIUM_CONFIG: Path to the config file (required)
+# 環境変数:
+#   CHROMIUM_CONFIG: 設定ファイルのパス（必須）
 #
-# Why CDP is localhost-only + socat, and why dbus-run-session (not autolaunch):
+# CDP を localhost だけにして socat を挟む理由と、autolaunch でなく dbus-run-session を使う理由:
 #   https://uraitakahito.github.io/chromium-server-docker/configuration/cdp/
 #   https://uraitakahito.github.io/chromium-server-docker/internals/driving-model/
 
@@ -24,16 +24,16 @@ if [[ ! -f "${CONFIG_FILE}" ]]; then
     exit 1
 fi
 
-# Read options from config file (exclude comments and empty lines)
+# 設定ファイルからオプションを読む（コメントと空行は除く）
 CHROMIUM_ARGS=$(grep -v '^[[:space:]]*#' "${CONFIG_FILE}" | grep -v '^[[:space:]]*$' | tr '\n' ' ')
 
 echo "Starting Chromium with config: ${CONFIG_FILE}"
 echo "Arguments: ${CHROMIUM_ARGS}"
 
-# Wrap Chromium in dbus-run-session so a fresh per-process session bus exists
-# before startup (silences session-bus probes). See internals/driving-model.
+# 起動の前にプロセスごとの新しい session bus が在るように、Chromium を dbus-run-session で包む
+# （session bus の probe を黙らせる）。internals/driving-model を参照。
 #
-# Word splitting is intentional: each whitespace-separated token must become
-# its own argv entry so chromium parses one flag per element.
+# 単語の分割は意図したもの: chromium が要素ごとに flag を 1 つ読めるように、
+# 空白で区切ったトークンをそれぞれ別の argv の要素にする。
 # shellcheck disable=SC2086
 exec dbus-run-session chromium ${CHROMIUM_ARGS}

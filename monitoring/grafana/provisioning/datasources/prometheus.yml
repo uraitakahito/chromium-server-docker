@@ -1,6 +1,5 @@
-# The Prometheus URL is deliberately in this file and not in compose
-# environment: — container-compose may rewrite an environment value that
-# equals a service name into an IP.
+# Prometheus の URL は意図してこのファイルに書き、compose の environment: には書かない ——
+# container-compose は、service 名と同じ環境変数の値を IP に書き換えることがある。
 apiVersion: 1
 datasources:
   - name: Prometheus

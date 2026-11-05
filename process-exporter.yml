@@ -1,33 +1,32 @@
-# process-exporter group definitions (Production · Headless)
+# process-exporter の群の定義（Production · Headless）
 #
-# The first matching rule wins, so the `--type=` rule comes before the catch
-# for the parent browser process. Only the processes that live in this
-# container on purpose are counted: chromium (by --type), its crashpad handler,
-# supervisord and socat. There is deliberately NO catch-all rule: with
-# `{{.Comm}}` + `.+`, every transient `sh` / `curl` spawned during a scrape
-# becomes its own group and the series count balloons.
+# 先に当たった規則が勝つので、`--type=` の規則を、親の browser process を拾う規則より前に置く。
+# 数えるのは、このコンテナに意図して居る process だけ:
+# chromium（--type ごと）、その crashpad handler、supervisord、socat。
+# catch-all の規則は意図して置かない:
+# `{{.Comm}}` と `.+` にすると、scrape の間に生まれる一時的な `sh` や `curl` が 1 つずつ群になり、
+# series の数が膨れる。
 #
-# Why the parent is matched by `comm` and not by its path: process-exporter
-# assigns a process to a group the first time it sees it and keeps that
-# assignment for the life of the pid. Chromium is started through Debian's
-# /usr/bin/chromium wrapper script, which later exec()s /usr/lib/chromium/chromium
-# under the SAME pid. An exporter that starts together with Chromium sees the
-# wrapper first (argv[0] = /bin/bash), so a rule anchored on the binary path
-# misses it forever and the browser ends up attributed to its ancestor.
-# `comm` is "chromium" for the wrapper and for the binary alike.
+# 親を path ではなく `comm` で当てる理由:
+# process-exporter は、process を最初に見たときに群を決めて、その pid の間は変えない。
+# Chromium は Debian の /usr/bin/chromium という wrapper のスクリプトから起動し、
+# wrapper は後で同じ pid のまま /usr/lib/chromium/chromium を exec() する。
+# Chromium と同時に起動した exporter は先に wrapper を見る（argv[0] = /bin/bash）ので、
+# binary の path に anchor した規則はそれを取りこぼし続け、browser は祖先のものとして数えられる。
+# `comm` は wrapper でも binary でも "chromium" である。
 #
-# Metrics come out as namedprocess_namegroup_*{groupname="..."}. Docs:
+# 値は namedprocess_namegroup_*{groupname="..."} として出る。docs:
 #   https://uraitakahito.github.io/chromium-server-docker/configuration/metrics/
 process_names:
-  # renderer / gpu-process / utility / zygote ... — whatever Chromium passes.
-  # Both selectors must match: a chromium process that carries --type=.
+  # renderer / gpu-process / utility / zygote ... —— Chromium が渡す物なら何でも。
+  # 両方の selector に当たらなければならない: --type= を持つ chromium の process。
   - name: "chromium-{{.Matches.type}}"
     comm: ["chromium"]
     cmdline: ["--type=(?P<type>[a-z-]+)"]
-  # The parent browser process (no --type), see above.
+  # 親の browser process（--type 無し）。上の説明を参照。
   - name: "chromium-browser"
     comm: ["chromium"]
-  # /proc/<pid>/comm is truncated to 15 characters.
+  # /proc/<pid>/comm は 15 文字で切れる。
   - name: "chrome_crashpad"
     comm: ["chrome_crashpad"]
   - name: "{{.Comm}}"

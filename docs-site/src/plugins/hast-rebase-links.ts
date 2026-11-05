@@ -21,7 +21,7 @@ export default defineHastPlugin({
     visit(node, ctx) {
       const href = node.properties?.href;
       if (typeof href !== "string") return;
-      // Leave links that already carry the base alone.
+      // 既に base を持つリンクは、そのままにする。
       if (!href.startsWith("/") || href.startsWith("//") || href.startsWith(`${BASE}/`) || href === BASE) {
         return;
       }

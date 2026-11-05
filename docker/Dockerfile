@@ -1,79 +1,79 @@
 #
-# chromium-server-docker — single multi-stage image.
+# chromium-server-docker —— 1 つの multi-stage の image。
 #
-#   base       : shared Chromium server core (chromium, fonts, dbus,
-#                supervisor, socat). Every apt package comes from
-#                snapshot.debian.org at APT_SNAPSHOT, and chromium is pinned
-#                to CHROMIUM_VERSION. Not runnable on its own.
-#   exporters  : fetches the two Prometheus exporters (node_exporter,
-#                process-exporter) from GitHub releases and verifies them.
-#   production : headless, CDP on :9222 via socat, Prometheus exporters on
-#                :9100 / :9256. Last stage, so an untargeted `build` yields
-#                production (fail-safe default).
+#   base       : Chromium server の共通の中核（chromium・fonts・dbus・supervisor・socat）。
+#                apt の package は全部、APT_SNAPSHOT の時点の snapshot.debian.org から入れ、
+#                chromium は CHROMIUM_VERSION に固定する。単独では動かない。
+#   exporters  : Prometheus の exporter 2 つ（node_exporter・process-exporter）を、
+#                GitHub の release から取って検証する。
+#   production : headless。CDP は socat 越しに :9222、Prometheus の exporter は :9100 / :9256。
+#                最後の段なので、target を指定しない `build` は production を建てる
+#                （安全側に倒した既定）。
 #
-# The former headful `debug` target (VNC/noVNC) is mothballed under
-# attic/debug/ — the chrome://inspect screencast covers visual verification
-# against headless workers (see the Verifying workers docs page).
+# 以前の headful の `debug` target（VNC/noVNC）は attic/debug/ に凍結した。
+# 目視の確認は、headless の worker に対する chrome://inspect の screencast で足りる
+# （docs の Verifying workers のページを参照）。
 #
-# Build (run from the repository root — the build context `.` must be the
-# repo root so that COPY can see the *.conf / *.sh files there):
+# build（リポジトリの root で打つ。COPY がリポジトリのファイルを見られるように、
+# build context の `.` はリポジトリの root でなければならない）:
 #   container build --target production -t chromium-server:production -f docker/Dockerfile .
 #
-# Docs:
+# docs:
 #   https://uraitakahito.github.io/chromium-server-docker/
+#
+# このファイルは大きくしない。Apple Container の `container build` は
+# Dockerfile を gRPC のヘッダで送るので、コメントも含めて約 15,000 バイトを
+# 超えると "Stream unexpectedly closed" で落ちる（apple/container#735）。
+# 長い説明は docs に書く（bin/dockerfile-size.test.mjs が見張る）。
 #
 
 # ---------------------------------------------------------------------------
-# Pinned versions (docs: configuration/chromium-version)
+# 固定した版（docs: configuration/chromium-version）
 # ---------------------------------------------------------------------------
-# Chromium and every other apt package are pinned by these two values.
-# `node bin/pin-chromium.mjs --write` writes them together; do not edit one
-# without the other.
+# Chromium とほかの apt の package は全部、この 2 つの値で固定する。
+# `node bin/pin-chromium.mjs --write` が 2 つを一緒に書く。片方だけを編集しない。
 #
-#   CHROMIUM_VERSION : the Debian version of chromium, chromium-common and
-#                      chromium-sandbox. The install below names it, so a
-#                      snapshot that does not list it fails the build.
-#   APT_SNAPSHOT     : the snapshot.debian.org time apt reads every package
-#                      from. It must not be earlier than the base image's own
-#                      snapshot time; the first RUN of `base` checks that.
+#   CHROMIUM_VERSION : chromium・chromium-common・chromium-sandbox の Debian の版。
+#                      下の install がこの版を名指すので、
+#                      この版を載せていない snapshot では build が落ちる。
+#   APT_SNAPSHOT     : apt が全部の package を読む snapshot.debian.org の時点。
+#                      base image 自身の snapshot の時点より前ではいけない。
+#                      `base` の最初の RUN がそれを確かめる。
 #
-# The CI smoke test, bin/check-stack.mjs and browserhive's stack check read
-# CHROMIUM_VERSION from the line below, so keep the form
-# `ARG CHROMIUM_VERSION=<version>`.
+# CI の smoke test・bin/check-stack.mjs・browserhive のスタックの点検は、
+# CHROMIUM_VERSION を下の行から読む。だから `ARG CHROMIUM_VERSION=<version>` の形を保つ。
 ARG CHROMIUM_VERSION=156.0.8078.73-1~deb12u1
 ARG APT_SNAPSHOT=20261029T185537Z
 
 # ---------------------------------------------------------------------------
-# base — shared Chromium server core
+# base —— Chromium server の共通の中核
 # ---------------------------------------------------------------------------
 
-# Debian bookworm, slim variant. The digest pins the base image's bits for
-# both architectures (arm64 under Apple Container on Apple silicon, amd64 in
-# CI). It does not pin what apt installs; APT_SNAPSHOT does. The tag's date
-# is the snapshot time the base image itself was built from (debuerreotype),
-# and the image records it in /etc/apt/sources.list.d/debian.sources.
-# Dependabot bumps the tag and digest together but never the two ARGs above,
-# so its PR fails the snapshot check below until bin/pin-chromium.mjs is run
-# on the same branch.
+# Debian bookworm の slim。digest は、両方の arch（Apple silicon の Apple Container では arm64、
+# CI では amd64）の base image の中身を固定する。
+# apt が入れる物は digest では固定されず、APT_SNAPSHOT が固定する。
+# tag の日付は base image 自身を作った snapshot の時点で（debuerreotype）、
+# image はそれを /etc/apt/sources.list.d/debian.sources に書いている。
+# Dependabot は tag と digest を一緒に上げるが、上の 2 つの ARG は上げない。
+# だからその PR は、同じ枝で bin/pin-chromium.mjs を走らせるまで、下の snapshot の確かめで落ちる。
 FROM debian:bookworm-20261027-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS base
 
 ARG CHROMIUM_VERSION
 ARG APT_SNAPSHOT
 
-# The image runs Chromium as an unprivileged system user. The user / group
-# are created with --system so their UID / GID land in the Debian system
-# range (100-999), avoiding collisions with arbitrary host UID / GID values
-# that build-time ARGs would have to pass through. (macOS hosts default to
-# GID 20 for the `staff` group, which collides with Debian's `dialout`
-# group at the same GID; an explicit `groupadd --gid 20` fails on those
-# hosts with no useful diagnostic.)
+# この image は Chromium を、特権の無い system user で動かす。
+# user と group は --system で作り、UID / GID を Debian の system の範囲（100-999）に収める。
+# build の ARG で host の任意の UID / GID を受け渡すと衝突しうるので、それを避ける。
+# （macOS の host では、`staff` group の既定の GID 20 が、
+# 同じ GID の Debian の `dialout` group と衝突する。
+# その host で `groupadd --gid 20` を明示すると、役に立つ診断も無く失敗する。）
 #
-# Bind mounts are intentionally NOT used on chromium-server containers, so
-# matching host file ownership is not a requirement here. (The mothballed
-# development image in attic/ kept ARG-based user creation because it did
-# bind-mount source code under /app.)
+# chromium-server のコンテナでは bind mount を意図して使わないので、
+# host のファイルの所有者に合わせる必要は無い。
+# （attic/ に凍結した development の image は、/app の下にソースを bind mount していたので、
+# ARG で user を作る形を残した。）
 
-# Avoid warnings by switching to noninteractive for the build process
+# build の間は noninteractive に切り替えて、警告を避ける
 ENV DEBIAN_FRONTEND=noninteractive
 
 ARG LANG=C.UTF-8
@@ -82,17 +82,18 @@ ARG TZ=UTC
 ENV TZ="$TZ"
 
 #
-# Point apt at snapshot.debian.org at APT_SNAPSHOT.
+# apt の読み先を、APT_SNAPSHOT の時点の snapshot.debian.org に向ける。
 #
-# The base image names its own snapshot in a comment above each source
-# (`# http://snapshot.debian.org/archive/debian/<time>`). A time earlier than
-# that would mix older packages with the base's newer ones, so it is refused.
-# The Release file of bookworm-security carries a Valid-Until date that has
-# passed in any snapshot, hence Check-Valid-Until. Plain http: the slim image
-# has no ca-certificates yet, and apt verifies the signed InRelease anyway.
-# Retries because the snapshot service sometimes answers 429 or 503, and
-# bookworm's apt does not read Retry-After. No pipes, so hadolint's DL4006
-# (pipefail) does not apply.
+# base image は、自分の snapshot を各 source の上のコメントに書いている
+# （`# http://snapshot.debian.org/archive/debian/<time>`）。
+# それより前の時点だと、base の新しい package に古い package が混ざるので断る。
+# bookworm-security の Release ファイルの Valid-Until は、どの snapshot でも過ぎているので、
+# Check-Valid-Until を切る。
+# http のままなのは、slim の image にはまだ ca-certificates が無いから。
+# apt はどのみち、署名つきの InRelease を検証する。
+# Retries を入れるのは、snapshot の側がときどき 429 か 503 を返し、
+# bookworm の apt が Retry-After を読まないから。
+# pipe を使っていないので、hadolint の DL4006（pipefail）は当たらない。
 #
 RUN set -eu; \
     src=/etc/apt/sources.list.d/debian.sources; \
@@ -119,58 +120,32 @@ RUN groupadd --system chromium && \
             --create-home --shell /bin/bash chromium
 
 #
-# Runtime packages, in one RUN so apt reads the snapshot once.
+# 実行時の package。apt が snapshot を読むのが 1 回で済むように、1 つの RUN にまとめる。
 #
-# chromium, chromium-common, chromium-sandbox: Debian's chromium (the stable
-# channel), pinned to CHROMIUM_VERSION. chromium depends on exactly the same
-# chromium-common version. Browser clients drive it over CDP; nothing here
-# downloads another Chromium.
+# chromium・chromium-common・chromium-sandbox: Debian の chromium（stable の channel）を、
+# CHROMIUM_VERSION に固定して入れる。chromium は、まったく同じ版の chromium-common に依存する。
+# クライアントが CDP で chromium を駆動する。ここで別の Chromium を download する物は無い。
 #
-# fonts-*: Chinese, Japanese, Arabic, Hebrew, Thai and a few other scripts.
+# fonts-*: 中国語・日本語・アラビア語・ヘブライ語・タイ語と、ほかのいくつかの文字。
 #
-# curl: the HEALTHCHECK and the exporters stage use it; keep it explicit so a
-# refactor cannot silently drop it. ca-certificates: TLS for anything the
-# container fetches (CDP itself is plain HTTP locally).
+# curl: HEALTHCHECK と exporters の段が使う。refactor で黙って落ちないように、明示しておく。
+# ca-certificates: コンテナが取りに行く物の TLS のため（CDP 自体は local では平文の HTTP）。
 #
-# We intentionally do NOT pull in a wider utility set (jq, htop, sudo,
-# manpages, etc.). This image is driven externally over CDP and is not
-# meant to be `container exec`-ed into for ad-hoc operations.
+# ほかの道具（jq・htop・sudo・manpages など）は意図して入れない。
+# この image は外から CDP で駆動する物で、`container exec` で入って場当たりの操作をする物ではない。
 #
-# dbus: Chromium probes the dbus session bus at startup for several
-# subsystems (Notifications, ScreenSaver, AT-SPI). Without any session bus
-# reachable, each probe emits a "Failed to connect to the bus" line to stderr
-# on every container launch. `start-chromium.sh` invokes
-# `dbus-run-session chromium ...`. That helper, shipped in `dbus`, spawns a
-# fresh per-process session bus, exports DBUS_SESSION_BUS_ADDRESS for the
-# wrapped command, forwards SIGHUP/SIGTERM/SIGINT to the child, and tears the
-# daemon down when chromium exits. No long-lived dbus daemon is needed in
-# supervisord.
+# dbus: `start-chromium.sh` は `dbus-run-session chromium ...` で、
+# プロセスごとの session bus を用意する。
+# Chromium は起動時に session bus を probe し、届かないと、コンテナの起動のたびに、
+# probe ごとに "Failed to connect to the bus" の行が stderr に出る。
+# supervisord に常駐の dbus daemon は置かない。`dbus-x11` は意図して入れず、
+# system bus の daemon は意図して動かさない（理由は docs: internals/driving-model）。
 #
-#   Why NOT `dbus-x11` + DBUS_SESSION_BUS_ADDRESS=autolaunch:
-#   `dbus-launch --autolaunch` (from `dbus-x11`) requires $DISPLAY — it uses
-#   an X11 atom to coordinate daemons — and refuses to spawn without it.
-#   Empirically broken in fully-headless containers like this one, so
-#   `dbus-x11` is deliberately NOT installed.
+# supervisor: プロセスの管理。
 #
-#   Scope: this silences SESSION-bus errors only. SYSTEM-bus probes (UPower,
-#   NetworkManager, BlueZ) still fail because `dbus-daemon --system` is
-#   intentionally not running — running it would require a long-lived root
-#   daemon and contradict this image's "thin CDP container" stance. Remaining
-#   system-bus stderr noise is acknowledged and left for
-#   log-aggregation-layer filtering.
-#
-# supervisor: process management.
-#
-# socat: Chrome DevTools Protocol port forwarding.
-#   Chromium's --remote-debugging-address=0.0.0.0 flag has been disabled or
-#   removed in recent versions for security reasons. The Chromium team has
-#   stated this flag "presents a security issue and should not be used" and
-#   there are "no plans to implement it in the new headless mode."
-#   As a workaround, socat forwards external connections (0.0.0.0:9222) to
-#   Chromium's localhost-only debugging port (127.0.0.1:9223).
-#   References:
-#     - https://issues.chromium.org/issues/40261787
-#     - https://issues.chromium.org/issues/40279369
+# socat: Chrome DevTools Protocol の口の転送。Chromium は CDP を
+# 127.0.0.1:9223 でしか受けないので、外からの接続（0.0.0.0:9222）を、
+# socat がそこへ転送する（理由と参考は docs: configuration/cdp）。
 #
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -195,17 +170,17 @@ WORKDIR /app
 COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 
 # ---------------------------------------------------------------------------
-# exporters — Prometheus exporters fetched from GitHub releases
+# exporters —— GitHub の release から取る Prometheus の exporter
 # ---------------------------------------------------------------------------
-# Two upstream binaries are bundled so the production container can be scraped
-# from inside the container network (the ports are not published to the host):
-#   node_exporter    (:9100)  VM / OS level metrics (cpu, meminfo, load, fs, net)
-#   process-exporter (:9256)  per-process-group metrics, grouped by chromium --type
+# コンテナ network の中から production のコンテナを scrape できるように、
+# 上流の binary を 2 つ同梱する（口は host に publish しない）:
+#   node_exporter    (:9100)  VM / OS の値（cpu・meminfo・load・fs・net・processes）
+#   process-exporter (:9256)  process の群ごとの値。chromium の --type で群に分ける
 #
-# Versions and sha256 live in docker/exporters.sha256 (4 lines: both exporters,
-# amd64 and arm64). Bump the ARG defaults and those 4 lines together. Dependabot
-# does not track GitHub release assets, so this is a manual step — the docs page
-# configuration/metrics has the procedure.
+# 版と sha256 は docker/exporters.sha256 に在る（4 行: exporter 2 つ × amd64・arm64）。
+# ARG の既定値とその 4 行を一緒に上げる。
+# Dependabot は GitHub の release の asset を追わないので、これは手で行う ——
+# 手順は docs の configuration/metrics のページに在る。
 FROM base AS exporters
 
 ARG NODE_EXPORTER_VERSION=1.12.1
@@ -214,10 +189,10 @@ ARG PROCESS_EXPORTER_VERSION=0.8.7
 WORKDIR /tmp/exporters
 COPY docker/exporters.sha256 ./exporters.sha256
 
-# `dpkg --print-architecture` yields amd64 / arm64 — the same spelling the
-# release assets use — without relying on BuildKit's TARGETARCH.
-# `sha256sum -c --ignore-missing` checks only the two tarballs present for this
-# architecture and fails if none of the listed files could be verified.
+# `dpkg --print-architecture` は、BuildKit の TARGETARCH に頼らずに amd64 / arm64 を返す
+# （release の asset と同じ綴り）。
+# `sha256sum -c --ignore-missing` は、この arch で取った 2 つの tarball だけを確かめ、
+# 一覧のファイルを 1 つも確かめられなければ失敗する。
 RUN set -eu; \
     arch="$(dpkg --print-architecture)"; \
     ne="node_exporter-${NODE_EXPORTER_VERSION}.linux-${arch}"; \
@@ -229,44 +204,43 @@ RUN set -eu; \
     tar -xzf "${pe}.tar.gz" --strip-components=1 "${pe}/process-exporter"
 
 # ---------------------------------------------------------------------------
-# production — headless, CDP :9222 + Prometheus exporters :9100 / :9256
-#              (DEFAULT: last stage in this file)
+# production —— headless、CDP は :9222、Prometheus の exporter は :9100 / :9256
+#               （既定: このファイルの最後の段）
 # ---------------------------------------------------------------------------
 FROM base AS production
 
-# The pin, readable without running the image (`container image inspect`).
+# 固定した値。image を動かさなくても読める（`container image inspect`）。
 ARG CHROMIUM_VERSION
 ARG APT_SNAPSHOT
 LABEL io.github.uraitakahito.chromium-server-docker.chromium-version="${CHROMIUM_VERSION}" \
       io.github.uraitakahito.chromium-server-docker.apt-snapshot="${APT_SNAPSHOT}"
 
-# Copy supervisor configuration and startup config
-# Note: --chmod=644 is required because:
-#   - The container runs as 'chromium' user (non-root)
-#   - Without explicit chmod, COPY preserves the source file's permissions
-#   - If the source file has 600 permissions, supervisord cannot read it
+# supervisor の設定と起動の設定を写す。
+# 注: --chmod=644 が要る理由:
+#   - コンテナは 'chromium' user（非 root）で動く
+#   - chmod を明示しないと、COPY は元のファイルの権限を保つ
+#   - 元のファイルの権限が 600 だと、supervisord が読めない
 COPY --chmod=644 supervisord-headless.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=644 chromium-headless.conf /app/chromium-headless.conf
 
-# Prometheus exporters (docs: configuration/metrics). The binaries come from the
-# `exporters` stage above; the process-exporter group definitions live in the
-# repo root next to the Chromium flag file.
+# Prometheus の exporter（docs: configuration/metrics）。binary は上の `exporters` の段から取る。
+# process-exporter の群の定義は、リポジトリの root の、Chromium の flag のファイルの隣に在る。
 COPY --from=exporters --chmod=755 /tmp/exporters/node_exporter /tmp/exporters/process-exporter /usr/local/bin/
 COPY --chmod=644 process-exporter.yml /app/process-exporter.yml
 
-# Documentation only — compose decides what gets published. 9222 is CDP (via
-# socat); 9100 (node_exporter) and 9256 (process-exporter) are meant to be
-# scraped from inside the container network and stay unpublished on the host.
+# 説明のためだけの宣言 —— 何を publish するかは compose が決める。9222 は socat 越しの CDP。
+# 9100（node_exporter）と 9256（process-exporter）はコンテナ network の中から scrape する物で、
+# host には publish しない。
 EXPOSE 9222 9100 9256
 
-# Health check for CDP availability.
-# Honored by Docker-compatible runtimes (e.g. the CI smoke job); Apple
-# Container does not evaluate HEALTHCHECK, so operational health there is
-# an external probe against http://<container-ip>:9222/json/version.
+# CDP が使えるかの health check。
+# Docker 互換の runtime（CI の smoke の job など）は従う。
+# Apple Container は HEALTHCHECK を評価しないので、
+# そこでの生死は http://<container-ip>:9222/json/version への外からの probe で見る。
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:9222/json/version || exit 1
 
 USER chromium
 
-# Headless mode execution (Xvfb not required)
+# headless で動かす（Xvfb は要らない）
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/app.conf"]
