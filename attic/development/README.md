@@ -5,7 +5,7 @@
 | **状態** | ❄ 凍結（メンテナンス予定なし・削除はしない） |
 | **凍結日** | 2026-07-11 |
 | **最終確認** | base: `9e9be62` ＋再構築ワークツリー。`docker build -f attic/development/Dockerfile .`（OrbStack / Docker 29.x, arm64）が成功することを凍結時に確認。**2026-07-11 追記**: debug ターゲットの凍結（attic/debug/）に伴い `chromium-headful.conf` を本ディレクトリへ複製し COPY パスを修正、同日ビルド成功を再確認 |
-| **凍結理由** | Apple Container 移行に伴い、開発を「ホスト macOS + CDP + `debug` ターゲット」方式へ変更（docs-site の development ページ参照）。コンテナ内完結の開発環境（dotfiles / Claude Code / VS Code attach / zsh 履歴 volume / ssh-agent 転送）は当面不要になったため |
+| **凍結理由** | Apple Container 移行に伴い、開発を「ホスト macOS + CDP + `debug` ターゲット」方式へ変更（当時の手順は [attic/debug/docs.ja.md](../debug/docs.ja.md) を参照。`debug` ターゲットも同じ日に凍結した）。コンテナ内完結の開発環境（dotfiles / Claude Code / VS Code attach / zsh 履歴 volume / ssh-agent 転送）は当面不要になったため |
 
 ## これは何だったか
 
@@ -42,5 +42,5 @@ bind mount したソースを編集して開発する前提だった。
 - [ ] 置き場所を `docker/development/` に戻すか判断し、戻す場合は COPY パスを再修正
 - [ ] `.github/workflows/docker-build.yml` の matrix に development を復帰
       （旧設定: `file: docker/development/Dockerfile` + `build-args: user_id/group_id=1001`）
-- [ ] 同梱の docs.md / docs.ja.md を docs-site の development ページとして復帰（現ページとの棲み分けを検討）
+- [ ] 同梱の docs.md / docs.ja.md を docs-site の development ページとして復帰（`attic/debug/` の docs との棲み分けを検討）
 - [ ] live 側と共有している `start-chromium.sh` の差分を確認
