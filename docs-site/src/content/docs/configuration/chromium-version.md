@@ -27,7 +27,7 @@ container image inspect chromium-server:production         # labels …chromium-
 (`156.0.8078.73-1~deb12u1` → `156.0.8078.73`). Three checks compare the two:
 
 - the CI smoke test, on both architectures (and the installed `dpkg` version);
-- `./bin/check-stack.mjs` for the [monitoring stack](/getting-started/monitoring/);
+- `./bin/stack.sh check` for the [monitoring stack](/getting-started/monitoring/);
 - BrowserHive's stack check, for each of its workers.
 
 A mismatch means the container runs an image built before the current pin.

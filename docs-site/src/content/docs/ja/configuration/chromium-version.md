@@ -27,7 +27,7 @@ container image inspect chromium-server:production         # label の …chromi
 （`156.0.8078.73-1~deb12u1` → `156.0.8078.73`）。この 2 つを照らす点検は 3 つある:
 
 - CI の smoke test。arm64 と amd64 の両方で、`dpkg` の版も見る
-- [監視スタック](/ja/getting-started/monitoring/)の `./bin/check-stack.mjs`
+- [監視スタック](/ja/getting-started/monitoring/)の `./bin/stack.sh check`
 - BrowserHive のスタックの点検。worker ごとに見る
 
 食い違ったら、そのコンテナは固定より前に建てた image で動いている。建て直す。
