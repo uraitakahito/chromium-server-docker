@@ -21,10 +21,9 @@ bind mount したソースを編集して開発する前提だった。
 | `Dockerfile` | dev イメージ本体（COPY パスは attic 基準に修正済み） |
 | `supervisord-headful.conf` | chromium + socat の supervisord 設定（VNC は desktop-lite の entrypoint が起動） |
 | `start-supervised.sh` | CMD 用の supervisord 起動ラッパ |
+| `chromium-headful.conf` | headful 用の Chromium 起動フラグ（debug ターゲットの凍結に伴い複製） |
 
-`start-chromium.sh` と `chromium-headful.conf` は live 側
-（`docker/Dockerfile` の `debug` ターゲット）と共有しているため、
-リポジトリルートに残っている。
+`start-chromium.sh` は live 側（production）と共用のため、リポジトリルートに残っている。
 
 ## 凍結中の扱い
 
@@ -44,4 +43,4 @@ bind mount したソースを編集して開発する前提だった。
 - [ ] `.github/workflows/docker-build.yml` の matrix に development を復帰
       （旧設定: `file: docker/development/Dockerfile` + `build-args: user_id/group_id=1001`）
 - [ ] 同梱の docs.md / docs.ja.md を docs-site の development ページとして復帰（現ページとの棲み分けを検討）
-- [ ] live 側と共有している `chromium-headful.conf` / `start-chromium.sh` の差分を確認
+- [ ] live 側と共有している `start-chromium.sh` の差分を確認
