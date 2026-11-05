@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docker/**/Dockerfile'
+      - 'attic/**/Dockerfile'
       - '.hadolint.yaml'
       - '.github/workflows/hadolint.yml'
 
