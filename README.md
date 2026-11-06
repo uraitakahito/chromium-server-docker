@@ -40,29 +40,6 @@ npm --prefix docs-site ci
 npm --prefix docs-site run dev
 ```
 
-## Dependency updates
-
-Dependabot (`.github/dependabot.yml`) opens **one pull request per group**: the
-docs-site npm dependencies and the GitHub Actions once a month, the Docker base
-image once a week. Security updates for docs-site are grouped into one more pull
-request and arrive whenever an alert appears. At most four Dependabot pull
-requests are open at any time.
-
-- **Merge when CI is green.** A docs-site PR builds the docs; a Docker PR builds
-  the image on amd64 and arm64 and checks CDP, the Chromium version against the
-  pin, and the bundled exporters.
-- **A Docker PR fails until the pin moves.** Dependabot bumps the base image but
-  not `APT_SNAPSHOT`, which must not be earlier than the base's own snapshot.
-  Check out the PR's branch, run `node bin/pin-chromium.mjs --write`, commit
-  `docker/Dockerfile`, push, and merge when green. This is the one case where you
-  push onto a Dependabot PR: Dependabot stops rebasing it afterwards, which does
-  not matter because it is merged right away.
-- **Otherwise, do not push commits onto a Dependabot PR.** Dependabot stops
-  rebasing a PR someone else has pushed to.
-- **After fixing a lockfile by hand** (for example `npm audit fix`), close the
-  Dependabot PRs it made obsolete in the same sitting. Dependabot does not close
-  security-update PRs whose alert was resolved another way.
-
 ## Related Projects
 
 - BrowserHive — a web page capture server that uses this project as its browser
