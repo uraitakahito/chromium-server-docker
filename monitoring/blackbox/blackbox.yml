@@ -7,7 +7,7 @@ modules:
       # DNS ドメインは AAAA レコードを返すが、VM の間に IPv6 の経路は無い —— IPv4 に固定する。
       preferred_ip_protocol: ip4
       ip_protocol_fallback: false
-      # Chromium の DevTools の HTTP の口は、DNS rebinding の対策で、
+      # Chromium の DevTools の HTTP のエンドポイントは、DNS rebinding の対策で、
       # IP の直書きか "localhost" ではない Host ヘッダを断る
       # （500 "Host header is specified and is not an IP address or localhost"）。
       # だから probe は chromium.chromium-server に繋ぎつつ、Host: localhost を名乗る。

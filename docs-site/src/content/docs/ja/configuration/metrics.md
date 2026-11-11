@@ -63,7 +63,7 @@ scrape_configs:
     relabel_configs: [{ source_labels: [__address__], regex: "([^:]+)(?::[0-9]+)?", target_label: instance }]
 ```
 
-relabel は `instance` を口を外したコンテナの名前にする。[監視スタック](/ja/getting-started/monitoring/)
+relabel は `instance` をポートを外したコンテナの名前にする。[監視スタック](/ja/getting-started/monitoring/)
 の dashboard と rule はこの形を前提にしている。
 
 ## 確認

@@ -14,7 +14,7 @@
 #   ./bin/cdp.sh targets         # 開いている tab の一覧（url と title）
 #
 # worker の選び方: $CDP_TARGET（worker の名前）、無ければ compose のスタックの worker
-# （chromium.chromium-server。127.0.0.1:9222 に publish した口から繋ぐ）、
+# （chromium.chromium-server。127.0.0.1:9222 に publish したポートから繋ぐ）、
 # 無ければ chromium-1、chromium-* の順で最初の物。
 # 失敗すると 0 以外で終わるので、そのまま自動の smoke の確かめに使える。
 #
@@ -43,7 +43,7 @@ fi
 
 # --- 繋ぎ先を決める ---
 # compose のスタックは、CDP を host の loopback（127.0.0.1:9222）に publish する。
-# それ以外は、コンテナ自身の IP の 9222 の口に繋ぐ。
+# それ以外は、コンテナ自身の IP の 9222 のポートに繋ぐ。
 PORT=9222
 if [ "$NAME" = "chromium.chromium-server" ]; then
     IP=127.0.0.1

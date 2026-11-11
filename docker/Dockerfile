@@ -143,7 +143,7 @@ RUN groupadd --system chromium && \
 #
 # supervisor: プロセスの管理。
 #
-# socat: Chrome DevTools Protocol の口の転送。Chromium は CDP を
+# socat: Chrome DevTools Protocol のポートの転送。Chromium は CDP を
 # 127.0.0.1:9223 でしか受けないので、外からの接続（0.0.0.0:9222）を、
 # socat がそこへ転送する（理由と参考は docs: configuration/cdp）。
 #
@@ -173,7 +173,7 @@ COPY --chmod=755 start-chromium.sh /app/start-chromium.sh
 # exporters —— GitHub の release から取る Prometheus の exporter
 # ---------------------------------------------------------------------------
 # コンテナ network の中から production のコンテナを scrape できるように、
-# 上流の binary を 2 つ同梱する（口は host に publish しない）:
+# 上流の binary を 2 つ同梱する（ポートは host に publish しない）:
 #   node_exporter    (:9100)  VM / OS の値（cpu・meminfo・load・fs・net・processes）
 #   process-exporter (:9256)  process の群ごとの値。chromium の --type で群に分ける
 #

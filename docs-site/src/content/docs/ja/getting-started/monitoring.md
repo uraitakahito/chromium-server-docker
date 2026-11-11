@@ -32,7 +32,7 @@ sudo container system dns create chromium-server
 
 ## 同時に起こすのは 1 つだけ
 
-利用者の stack も同じ loopback の口を使う。capture-ledger は自分の chromium を `127.0.0.1:9222` に、
+利用者の stack も同じ loopback のポート（待ち受けの番号）を使う。capture-ledger は自分の chromium を `127.0.0.1:9222` に、
 browserhive の profile `monitoring` は自分の Prometheus と Grafana を `127.0.0.1:9090`・`:3000` に publish する。
 この stack をそれらと並べて起こさない。先に他方を止める（そちらで `pnpm run dev:down`／`pnpm run stack:down`）。
 `bin/stack.sh up` は `127.0.0.1:9222` を自分以外が持っている間は起動を断り、持ち主の候補を名指す。
@@ -47,7 +47,7 @@ browserhive の profile `monitoring` は自分の Prometheus と Grafana を `12
 ```
 
 `check` は 3 層を見る（`--wait` は 120 秒まで繰り返す。`<service>.chromium-server` の名前は起動から 1 分ほど
-引けないことがある）: publish した 3 つの口（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up` で `instance` がコンテナの名前（下を参照）、
+引けないことがある）: publish した 3 つのポート（3000・9090・9222）が答える、Prometheus の scrape target が全部 `up` で `instance` がコンテナの名前（下を参照）、
 worker の中の process-exporter が親の `chromium` を 1 本と数える。落ちた行を名指しして
 非 0 で終わる。
 
@@ -108,7 +108,7 @@ file に戻すには:
 - **`build.target` は無視される**（container-compose）。Dockerfile の最後の段が `production` なので
   同じイメージが建つ。
 - **`container_name:` は書かない。** `<service>.chromium-server` の DNS 命名が抑止される。
-- **blackbox の probe は `Host: localhost` を送る。** Chromium の DevTools の HTTP 口は、Host が
+- **blackbox の probe は `Host: localhost` を送る。** Chromium の DevTools の HTTP のエンドポイント（`/json` など）は、Host が
   IP か `localhost` でないと `500 Host header is specified and is not an IP address or localhost`
   を返す（DNS rebinding の守り）。DNS 名をそのまま使った probe は、CDP が生きているのに down と言っていた。
 
@@ -122,7 +122,7 @@ submodule から）使える:
 - `monitoring/grafana/dashboards/chromium.json` と `monitoring/prometheus/rules/chromium.yml`。1 ファイルずつ
   bind mount する
 
-どちらも 2 つの決まりで引くので、守る: 上の job の名前と、`instance` = 口を外したコンテナの名前
+どちらも 2 つの決まりで引くので、守る: 上の job の名前と、`instance` = ポートを外したコンテナの名前
 （`chromium-1.browserhive`）。`monitoring/prometheus/prometheus.yml` と同じように、`chromium-*` の job ごとに
 relabel する。relabel が無いと、同じコンテナの node と process の series が別の `instance`（`:9100` と
 `:9256`）を持ち、dashboard の変数で台を選べない。その Prometheus をどこに置くかは、その project の判断。

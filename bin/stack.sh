@@ -29,7 +29,7 @@ case "${1:-}" in
     fi
     # 同時に起こすのは 1 つだけ:
     # 利用者のスタックは、自分の chromium を 127.0.0.1:9222 に publish する。
-    # この口が塞がっていて自分の worker でなければ、ほかのスタックがまだ動いている ——
+    # このポートが塞がっていて自分の worker でなければ、ほかのスタックがまだ動いている ——
     # 並べて起こさず、先にそれを止める。
     if ! container ls 2>/dev/null | awk 'NR > 1 { print $1 }' | grep -qx "chromium.$DOMAIN" \
        && nc -z -G 2 127.0.0.1 9222 2>/dev/null; then
@@ -48,7 +48,7 @@ case "${1:-}" in
     exec node bin/check-stack.mjs "$@"
     ;;
   reload)
-    # Prometheus は --web.enable-lifecycle で動いていて、口は loopback に publish してある。
+    # Prometheus は --web.enable-lifecycle で動いていて、ポートは loopback に publish してある。
     curl -sf -X POST http://127.0.0.1:9090/-/reload && echo "prometheus: reloaded"
     ;;
   *)

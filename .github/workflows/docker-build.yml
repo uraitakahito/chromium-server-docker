@@ -108,7 +108,7 @@ jobs:
       - name: List the installed packages
         run: docker exec smoke dpkg-query -W -f="\${Package} \${Version}\n"
 
-      # 同梱の exporter が、それぞれの口で答える。chromium-browser はちょうど 1（親の process）。
+      # 同梱の exporter が、それぞれのポートで答える。chromium-browser はちょうど 1（親の process）。
       # renderer は増減するので、居ることだけを見る。
       # CDP が起きた直後は renderer がまだ生まれている途中かもしれないので、数秒やり直す。
       # 失敗したら、exporter の答えと process の一覧を出して、ログだけで事情が分かるようにする。
