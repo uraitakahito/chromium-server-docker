@@ -75,7 +75,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# socat: 0.0.0.0:9222 を、Chromium の localhost だけの CDP の口 9223 へ転送する
+# socat: 0.0.0.0:9222 を、Chromium の localhost だけの CDP のポート 9223 へ転送する
 # （--remote-debugging-address=0.0.0.0 は上流で無効。参考は docs: configuration/cdp を参照）。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -117,7 +117,7 @@ RUN apt-get update && \
 COPY --chmod=644 attic/debug/supervisord-debug.conf /etc/supervisor/conf.d/app.conf
 COPY --chmod=644 attic/debug/chromium-headful.conf /app/chromium-headful.conf
 
-# production と同じ probe: 契約は CDP の口で、VNC は見るための補助にすぎない。
+# production と同じ probe: 契約は CDP のポートで、VNC は見るための補助にすぎない。
 # Docker 互換の runtime が評価する。Apple Container は HEALTHCHECK を無視する（外から probe する）。
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:9222/json/version || exit 1

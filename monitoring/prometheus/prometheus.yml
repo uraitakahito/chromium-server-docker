@@ -1,7 +1,7 @@
 # chromium-server の開発スタック（docker-compose.yml）の Prometheus。
 # target は、この compose project の <service>.chromium-server の名前。
 #
-# chromium-* の job では、`instance` はどれも口を外したコンテナの名前（chromium.chromium-server）。
+# chromium-* の job では、`instance` はどれもポートを外したコンテナの名前（chromium.chromium-server）。
 # だから 1 つのコンテナの node・process・cdp の series で同じ値になる。
 # dashboard の $instance の変数と rule の summary が、これに頼る。
 # chromium.json と rules/chromium.yml を使い回す下流のスタックは、

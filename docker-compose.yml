@@ -12,7 +12,7 @@
 #   ./bin/stack.sh reload   # Prometheus に prometheus.yml と rules を読み直させる
 #   ./bin/stack.sh down     # 止める（次の up で作り直す）
 #
-# 起こす前に、同じ口を使うほかのスタックを止めておく（capture-ledger は pnpm run dev:down、
+# 起こす前に、同じポートを使うほかのスタックを止めておく（capture-ledger は pnpm run dev:down、
 # browserhive は pnpm run stack:down）。
 #
 # ── アクセス ──────────────────────────────────────────────────────────
@@ -38,10 +38,10 @@
 # では残り、作り直し（container-compose up -d）と container rm で消える（2026-10-31 に実測）。
 # image の既定の user（nobody・grafana）が自分の data dir を持っているので、user: も要らない
 # —— named volume を使うと mount point が root 所有になり、user: "0" が要った。
-# exporter の口 9100 / 9256 は publish せず、Prometheus がコンテナ network の中で scrape する。
+# exporter のポート 9100 / 9256 は publish せず、Prometheus がコンテナ network の中で scrape する。
 #
 # 同時に起こすのは 1 つだけ。利用者のスタック（capture-ledger・browserhive）は自分の
-# chromium を同じ loopback の口に publish する。このスタックをそれらと並べて起こさない
+# chromium を同じ loopback のポートに publish する。このスタックをそれらと並べて起こさない
 # —— bin/stack.sh up は 127.0.0.1:9222 を自分以外が持っている間、起動を断る。
 #
 # Grafana に渡す Prometheus の URL は provisioning の FILE に書く。environment: には

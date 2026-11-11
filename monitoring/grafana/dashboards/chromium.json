@@ -2,7 +2,7 @@
   "id": null,
   "uid": "chromium",
   "title": "chromium-server",
-  "description": "chromium-server-docker の Chromium のコンテナ。上の instance で台を選ぶ（下流のスタックでは複数台）。instance は口を外したコンテナの名前。exporter は image に同梱（node_exporter :9100・process-exporter :9256）、CDP の生死は blackbox。",
+  "description": "chromium-server-docker の Chromium のコンテナ。上の instance で台を選ぶ（下流のスタックでは複数台）。instance はポートを外したコンテナの名前。exporter は image に同梱（node_exporter :9100・process-exporter :9256）、CDP の生死は blackbox。",
   "tags": [
     "chromium-server"
   ],

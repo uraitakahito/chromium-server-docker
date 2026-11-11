@@ -1,10 +1,10 @@
 // check-stack.mjs —— 開発スタック（docker-compose.yml）は答えているか。
 //
 // 3 つの層を順に見る:
-//   1. host の loopback に publish した口: Prometheus・Grafana・CDP。
+//   1. host の loopback に publish したポート: Prometheus・Grafana・CDP。
 //      さらに、CDP の先の Chromium が docker/Dockerfile の固定した版であること
 //   2. Prometheus の scrape の target が全部 `up` であること（スタックの中の DNS 名が引ける）。
-//      さらに、chromium-* の job の instance が口を外したコンテナの名前であること
+//      さらに、chromium-* の job の instance がポートを外したコンテナの名前であること
 //      （dashboard の $instance の変数と rule の summary がこれに頼る）
 //   3. chromium のコンテナの中で、process-exporter が親の chromium をちょうど 1 つ数えること
 //
@@ -109,7 +109,7 @@ const inspect = async () => {
     }
   }
 
-  // 層 3: chromium のコンテナの中。exporter の口は publish していないので、
+  // 層 3: chromium のコンテナの中。exporter のポートは publish していないので、
   // コンテナ自身に訊く（`container` の CLI が要る）。
   try {
     const text = execFileSync(

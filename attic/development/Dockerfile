@@ -149,7 +149,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 #
-# Chrome DevTools Protocol の口を転送する socat
+# Chrome DevTools Protocol のポートを転送する socat
 #
 # socat が要る理由:
 #   Chromium の --remote-debugging-address=0.0.0.0 は、security の理由で、
@@ -158,7 +158,7 @@ RUN apt-get update && \
 #   "no plans to implement it in the new headless mode." としている。
 #
 #   回避策として、socat が外からの接続（0.0.0.0:9222）を、
-#   Chromium の localhost だけの debugging の口（127.0.0.1:9223）へ転送する。
+#   Chromium の localhost だけの debugging のポート（127.0.0.1:9223）へ転送する。
 #
 # 参考:
 #   - https://issues.chromium.org/issues/40261787
@@ -205,16 +205,16 @@ RUN cd /home/${user_name} && \
 #  Puppeteer の対応はここから      #
 ####################################
 #
-# 警告: ここで 9222 の口を EXPOSE しない。
+# 警告: ここで 9222 のポートを EXPOSE しない。
 #
-# VS Code の "Attach to Running Container" がこのコンテナに繋ぐと、EXPOSE された口を自動で見つけ、
+# VS Code の "Attach to Running Container" がこのコンテナに繋ぐと、EXPOSE されたポートを自動で見つけ、
 # Mac の localhost からコンテナへの転送を張る。これが "Auto Forward Ports" の機能である。
 #
 # Mac の host でサーバ（CDP のサーバなど）が動き、
 # コンテナが `--add-host=<hostname>:host-gateway` でそこへ繋ぐプロジェクトでは、
-# ここで同じ口を EXPOSE すると衝突する。
+# ここで同じポートを EXPOSE すると衝突する。
 #
-# この口を EXPOSE すると、VS Code は Mac の localhost:<port> を、
+# このポートを EXPOSE すると、VS Code は Mac の localhost:<port> を、
 # コンテナの localhost:<port> へ転送する。これが Mac の host のサーバ宛ての接続を横取りするので、
 # WebSocket や HTTP の接続がいつまでも止まる。
 #
@@ -225,7 +225,7 @@ RUN cd /home/${user_name} && \
 #
 # VS Code の自動の転送を切るには、settings.json に次を足してもよい:
 #   "remote.autoForwardPorts": false
-# または、特定の口だけを無視する:
+# または、特定のポートだけを無視する:
 #   "remote.portsAttributes": { "3000": { "onAutoForward": "ignore" } }
 #
 # EXPOSE 9222
