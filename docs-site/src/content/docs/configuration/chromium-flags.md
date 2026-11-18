@@ -32,7 +32,7 @@ container run \
 | ---- | --- |
 | `--headless` | Headless (production) image. The mothballed headful units (`attic/`) omit it so Chromium renders to the VNC display. |
 | `--remote-debugging-port=9223` | CDP endpoint port **inside** the container. Chromium binds it to localhost only; `socat` bridges the published `9222` to it (see [CDP](/configuration/cdp/)). |
-| `--remote-debugging-address=127.0.0.1` | Bind CDP to localhost. Chromium removed support for binding `0.0.0.0` for security, so external access goes through `socat`. |
+| `--remote-debugging-address=127.0.0.1` | States the intent only: current Chromium does not read this flag. Whatever value it is given, Chromium binds CDP to `127.0.0.1` (the old headless mode's support for the flag was removed in Chromium 126), so external access goes through `socat`. |
 | `--no-first-run`, `--no-default-browser-check` | Skip first-run UI and default-browser prompts. |
 | `--disable-background-networking` | Stop background fetches (variations, update pings) that add noise to a capture. |
 | `--disable-dev-shm-usage` | Use `/tmp` instead of `/dev/shm`; the default `/dev/shm` is tiny in containers and crashes Chromium. |

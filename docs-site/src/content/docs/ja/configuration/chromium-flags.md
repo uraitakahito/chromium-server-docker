@@ -30,7 +30,7 @@ container run \
 | ---- | ---- |
 | `--headless` | ヘッドレス（production）イメージ。凍結中のヘッドフル（`attic/`）では省略し、VNC ディスプレイへ描画する。 |
 | `--remote-debugging-port=9223` | コンテナ**内**の CDP エンドポイントのポート。Chromium は localhost のみに bind し、公開ポート `9222` を `socat` が橋渡しする（[CDP](/configuration/cdp/) 参照）。 |
-| `--remote-debugging-address=127.0.0.1` | CDP を localhost に bind。Chromium は `0.0.0.0` への bind を security 上の理由で廃止したため、外部アクセスは `socat` 経由。 |
+| `--remote-debugging-address=127.0.0.1` | 意図を書いているだけで、いまの Chromium はこの flag を読まない。何を渡しても、Chromium は CDP を `127.0.0.1` に bind する（旧 headless がこの flag を読む実装は Chromium 126 で削除された）。だから外部アクセスは `socat` 経由。 |
 | `--no-first-run`, `--no-default-browser-check` | 初回起動 UI と既定ブラウザ確認をスキップ。 |
 | `--disable-background-networking` | variations 取得や更新 ping などの background 通信を止め、捕獲のノイズを減らす。 |
 | `--disable-dev-shm-usage` | `/dev/shm` の代わりに `/tmp` を使う。コンテナ既定の `/dev/shm` は小さく Chromium が crash するため。 |
