@@ -52,8 +52,8 @@ ARG APT_SNAPSHOT=20261029T185537Z
 # Debian bookworm の slim。digest は、両方の arch（Apple silicon の Apple Container では arm64、
 # CI では amd64）の base image の中身を固定する。
 # apt が入れる物は digest では固定されず、APT_SNAPSHOT が固定する。
-# tag の日付は base image 自身を作った snapshot の時点で（debuerreotype）、
-# image はそれを /etc/apt/sources.list.d/debian.sources に書いている。
+# tag の日付は base image 自身を作った snapshot の日で（debuerreotype。時刻は 00:00 とは限らない）、
+# image はその時点を /etc/apt/sources.list.d/debian.sources に書いている。
 # Dependabot は tag と digest を一緒に上げるが、上の 2 つの ARG は上げない。
 # だからその PR は、同じ枝で bin/pin-chromium.mjs を走らせるまで、下の snapshot の確かめで落ちる。
 FROM debian:bookworm-20261027-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS base
