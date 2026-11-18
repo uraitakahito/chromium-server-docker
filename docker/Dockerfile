@@ -42,8 +42,8 @@
 #
 # CI の smoke test・bin/check-stack.mjs・browserhive のスタックの点検は、
 # CHROMIUM_VERSION を下の行から読む。だから `ARG CHROMIUM_VERSION=<version>` の形を保つ。
-ARG CHROMIUM_VERSION=156.0.8078.73-1~deb12u1
-ARG APT_SNAPSHOT=20261029T185537Z
+ARG CHROMIUM_VERSION=156.0.8078.79-1~deb12u1
+ARG APT_SNAPSHOT=20261104T212339Z
 
 # ---------------------------------------------------------------------------
 # base —— Chromium server の共通の中核
