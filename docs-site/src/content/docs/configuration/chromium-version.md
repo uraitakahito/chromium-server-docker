@@ -95,11 +95,11 @@ Chromium moves in the same pull request.
 A Chromium security update reaches the image only when the pin moves. Debian
 ships chromium point releases about two days after upstream. A new major
 version took three to ten days for 153 to 156, but it can take much longer:
-157 became upstream Stable on 2026-11-03, and 16 days later, on 2026-11-19,
-Debian had not uploaded it at all, not even to unstable. Until Debian ships
-it, the helper can pick only the previous major, and the image stays on that
-version. Run the helper whenever a Debian chromium update is out. There is no
-need to wait for a new base image.
+157 became upstream Stable on 2026-11-03, and 15 days later, on 2026-11-18
+(UTC), Debian had not uploaded it at all, not even to unstable. Until Debian
+ships it, the helper can pick only the previous major, and the image stays on
+that version. Run the helper whenever a Debian chromium update is out. There
+is no need to wait for a new base image.
 
 ## Not pinned here
 
