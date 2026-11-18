@@ -88,7 +88,7 @@ pull request の枝を checkout して `node bin/pin-chromium.mjs --write` を�
 固定していると、Chromium の security の更新は、固定を上げたときにしか image に入らない。
 Debian の chromium は、点の更新なら上流から 2 日ほど遅れて出る。新しい major の版は、
 153〜156 では 3〜10 日で出たが、もっと遅れることが在る。157 は 2026-11-03 に上流で Stable に
-なり、16 日後の 2026-11-19 にも Debian に上がっていなかった（unstable にも無い）。Debian に
+なり、15 日後の 2026-11-18（UTC）にも Debian に上がっていなかった（unstable にも無い）。Debian に
 出るまで、helper が選べるのは前の major の版だけで、image はその版のままになる。Debian に
 chromium の更新が出たら、helper を走らせる。新しい base image を待つ必要は無い。
 
