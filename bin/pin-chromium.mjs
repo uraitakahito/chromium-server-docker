@@ -9,7 +9,9 @@
 //      またはコマンドラインで渡された版
 //   2. 時点: image を建てる全部の arch の索引にその版が載っている、
 //      いちばん早い debian-security の取り込み。
-//      ただし、base image 自身の snapshot の時点（FROM の tag の日付）より前ではないもの
+//      ただし、base image 自身の snapshot の時点より前ではないもの。
+//      その時点は tag の日付の 00:00 とは限らない（bookworm-20261104-slim は 21:23:39）ので、
+//      Docker Hub から FROM の digest の image の config を読み、その created を使う
 //
 // 時点の探索は、3 つの package の両方の arch での first_seen のうち、いちばん遅いものから始める。
 // first_seen は .deb が pool に入った時刻で、索引に載った時刻ではない
@@ -30,6 +32,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SNAPSHOT = "https://snapshot.debian.org";
+const REGISTRY = "https://registry-1.docker.io";
 /** image を建てる arch: Apple Container では arm64、CI では amd64。 */
 export const ARCHES = ["amd64", "arm64"];
 /** Dockerfile が CHROMIUM_VERSION の版で入れる package。 */
@@ -41,7 +44,7 @@ const MAX_IMPORTS = 24;
 
 /** Dockerfile のテキストから、base image と固定した 2 つの値を読む。 */
 export function readPin(text) {
-  const from = /^FROM debian:([a-z]+)-(\d{8})-slim@sha256:[0-9a-f]{64} AS base$/m.exec(text);
+  const from = /^FROM debian:([a-z]+)-\d{8}-slim@(sha256:[0-9a-f]{64}) AS base$/m.exec(text);
   const version = /^ARG CHROMIUM_VERSION=(\S+)$/m.exec(text);
   const snapshot = /^ARG APT_SNAPSHOT=(\S+)$/m.exec(text);
   if (from === null || version === null || snapshot === null) {
@@ -52,8 +55,7 @@ export function readPin(text) {
   }
   return {
     codename: from[1],
-    // tag の日付は、base image を作った snapshot の時点（debuerreotype）。
-    baseSnapshot: `${from[2]}T000000Z`,
+    digest: from[2],
     version: version[1],
     snapshot: snapshot[1],
   };
@@ -88,6 +90,42 @@ export function versionsIn(packagesText, names) {
     found.get(name).add(version);
   }
   return found;
+}
+
+/** image の config の created（2026-11-04T21:23:39Z）を snapshot の時点の形（20261104T212339Z）にする。 */
+export const snapshotOf = (created) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/.exec(created);
+  if (m === null) throw new Error(`unexpected image creation time: ${created}`);
+  return `${m[1]}${m[2]}${m[3]}T${m[4]}${m[5]}${m[6]}Z`;
+};
+
+/**
+ * base image 自身の snapshot の時点。debuerreotype は、その時点を image の created にし、
+ * /etc/apt/sources.list.d/debian.sources の注記にも書く（Dockerfile の最初の RUN が読むのは後者）。
+ * 全部の arch の image を読み、いちばん遅いものを返す。
+ */
+async function baseSnapshot(digest) {
+  const auth = await fetch("https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/debian:pull", {
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!auth.ok) throw new Error(`auth.docker.io → ${auth.status}`);
+  const { token } = await auth.json();
+  const get = async (path, accept) => {
+    const url = `${REGISTRY}/v2/library/debian/${path}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: accept }, signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`${url} → ${res.status}`);
+    return res.json();
+  };
+  const index = await get(`manifests/${digest}`, "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json");
+  const times = [];
+  for (const arch of ARCHES) {
+    const entry = (index.manifests ?? []).find((m) => m.platform?.os === "linux" && m.platform?.architecture === arch);
+    if (entry === undefined) throw new Error(`the base image ${digest} has no linux/${arch} image`);
+    const manifest = await get(`manifests/${entry.digest}`, entry.mediaType);
+    const config = await get(`blobs/${manifest.config.digest}`, manifest.config.mediaType);
+    times.push(snapshotOf(config.created));
+  }
+  return latest(times);
 }
 
 const getJson = async (path) => {
@@ -168,14 +206,15 @@ async function main(argv) {
   }
   if (!version.includes(suffix)) throw new Error(`${version} is not a ${pin.codename} version (${suffix}…)`);
 
-  const start = latest([pin.baseSnapshot, await firstSeen(version)]);
+  const base = await baseSnapshot(pin.digest);
+  const start = latest([base, await firstSeen(version)]);
   const snapshot = await chooseSnapshot(pin.codename, start, version);
 
   const rows = [
     ["", "now", "chosen"],
     ["CHROMIUM_VERSION", pin.version, version],
     ["APT_SNAPSHOT", pin.snapshot, snapshot],
-    ["base snapshot", pin.baseSnapshot, pin.baseSnapshot],
+    ["base snapshot", base, base],
   ];
   const width = Math.max(...rows.map((r) => r[1].length));
   for (const [name, now, chosen] of rows) console.log(`${name.padEnd(16)}  ${now.padEnd(width)}  ${chosen}`);

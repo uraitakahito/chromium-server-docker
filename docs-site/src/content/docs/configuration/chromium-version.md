@@ -62,6 +62,11 @@ The helper needs Node 22+ and `xz` on `PATH`. It asks snapshot.debian.org for:
 2. the earliest debian-security import whose index lists that version for
    **both** amd64 and arm64, and which is not earlier than the base's time.
 
+The base's time is not always midnight of the tag's date:
+`bookworm-20261027-slim` was built from `20261027T000000Z`, but
+`bookworm-20261104-slim` from `20261104T212339Z`. So the helper reads it from
+Docker Hub, as the creation time of the image that the `FROM` digest names.
+
 The architectures can disagree for a while after a Debian upload. At 18:00 UTC
 on 2026-10-29, the arm64 index already listed `156.0.8078.73`, and the amd64
 index still listed `.47`. The helper checks the index itself, not only when

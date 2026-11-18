@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { latest, newestFor, readPin, upstreamOf, versionsIn, writePin } from "./pin-chromium.mjs";
+import { latest, newestFor, readPin, snapshotOf, upstreamOf, versionsIn, writePin } from "./pin-chromium.mjs";
 
 const SAMPLE = `ARG CHROMIUM_VERSION=156.0.8078.47-1~deb12u1
 ARG APT_SNAPSHOT=20261023T104441Z
@@ -15,10 +15,10 @@ ARG CHROMIUM_VERSION
 ARG APT_SNAPSHOT
 `;
 
-test("readPin reads the codename, the base snapshot and both pinned values", () => {
+test("readPin reads the codename, the base digest and both pinned values", () => {
   assert.deepEqual(readPin(SAMPLE), {
     codename: "bookworm",
-    baseSnapshot: "20261027T000000Z",
+    digest: `sha256:${"a".repeat(64)}`,
     version: "156.0.8078.47-1~deb12u1",
     snapshot: "20261023T104441Z",
   });
@@ -28,7 +28,7 @@ test("readPin reads the repository's own Dockerfile", () => {
   const pin = readPin(readFileSync(new URL("../docker/Dockerfile", import.meta.url), "utf8"));
   assert.match(pin.version, /^\d+\.\d+\.\d+\.\d+-\d+~deb\d+u\d+$/);
   assert.match(pin.snapshot, /^\d{8}T\d{6}Z$/);
-  assert.ok(pin.snapshot >= pin.baseSnapshot, "APT_SNAPSHOT must not be earlier than the base snapshot");
+  assert.match(pin.digest, /^sha256:[0-9a-f]{64}$/);
 });
 
 test("readPin refuses a Dockerfile without the pin", () => {
@@ -57,6 +57,14 @@ test("newestFor takes the first version with the codename's suffix", () => {
   const versions = ["156.0.8078.73-1", "156.0.8078.73-1~deb13u1", "156.0.8078.73-1~deb12u1", "156.0.8078.47-1~deb12u1"];
   assert.equal(newestFor(versions, "~deb12u"), "156.0.8078.73-1~deb12u1");
   assert.equal(newestFor(versions, "~deb11u"), undefined);
+});
+
+test("snapshotOf turns an image's creation time into a snapshot time", () => {
+  // bookworm-20261104-slim は、tag の日付の 00:00 ではなく 21:23:39 の snapshot から作られた。
+  assert.equal(snapshotOf("2026-11-04T21:23:39Z"), "20261104T212339Z");
+  assert.equal(snapshotOf("2026-10-27T00:00:00Z"), "20261027T000000Z");
+  assert.equal(snapshotOf("2026-10-27T00:00:00.123Z"), "20261027T000000Z");
+  assert.throws(() => snapshotOf("2026-10-27"), /unexpected image creation time/);
 });
 
 test("latest compares snapshot times as text", () => {

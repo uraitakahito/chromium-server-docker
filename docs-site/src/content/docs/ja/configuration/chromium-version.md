@@ -58,6 +58,10 @@ helper には Node 22 以上と、`PATH` の上の `xz` が要る。snapshot.deb
 2. その版が amd64 と arm64 の**両方**の索引に載っている、いちばん早い debian-security の取り込み。
    ただし base の時点より前ではないもの
 
+base の時点は、tag の日付の 00:00 とは限らない。`bookworm-20261027-slim` は
+`20261027T000000Z` から作られたが、`bookworm-20261104-slim` は `20261104T212339Z` から作られた。
+だから helper は、`FROM` の digest が名指す image の作成時刻を Docker Hub から読む。
+
 Debian に上がった直後は、arch によって版が食い違うことがある。2026-10-29 の 18:00（UTC）には、
 arm64 の索引はもう `156.0.8078.73` を載せていて、amd64 の索引はまだ `.47` だった。helper は、
 package が archive に入った時刻だけでなく、索引そのものを確かめる。
