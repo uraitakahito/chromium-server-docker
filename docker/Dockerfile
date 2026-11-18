@@ -42,8 +42,8 @@
 #
 # CI の smoke test・bin/check-stack.mjs・browserhive のスタックの点検は、
 # CHROMIUM_VERSION を下の行から読む。だから `ARG CHROMIUM_VERSION=<version>` の形を保つ。
-ARG CHROMIUM_VERSION=156.0.8078.73-1~deb12u1
-ARG APT_SNAPSHOT=20261029T185537Z
+ARG CHROMIUM_VERSION=156.0.8078.79-1~deb12u1
+ARG APT_SNAPSHOT=20261104T212339Z
 
 # ---------------------------------------------------------------------------
 # base —— Chromium server の共通の中核
@@ -56,7 +56,7 @@ ARG APT_SNAPSHOT=20261029T185537Z
 # image はその時点を /etc/apt/sources.list.d/debian.sources に書いている。
 # Dependabot は tag と digest を一緒に上げるが、上の 2 つの ARG は上げない。
 # だからその PR は、同じ枝で bin/pin-chromium.mjs を走らせるまで、下の snapshot の確かめで落ちる。
-FROM debian:bookworm-20261027-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS base
+FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS base
 
 ARG CHROMIUM_VERSION
 ARG APT_SNAPSHOT
